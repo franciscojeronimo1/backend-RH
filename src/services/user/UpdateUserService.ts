@@ -9,7 +9,7 @@ interface UpdateUserData {
 }
 
 class UpdateUserService {
-    async execute(id: string, data: UpdateUserData) {
+    async execute(id: string, data: UpdateUserData, currentUserId: string, currentUserRole: string) {
         // Verificar se o usuário existe
         const existingUser = await prismaClient.user.findUnique({
             where: { id },
@@ -17,6 +17,24 @@ class UpdateUserService {
 
         if (!existingUser) {
             throw new Error('Usuário não encontrado');
+        }
+
+        // STAFF só pode atualizar seus próprios dados e não pode mudar role
+        if (currentUserRole === 'STAFF') {
+            if (id !== currentUserId) {
+                throw new Error('Você só pode atualizar seus próprios dados');
+            }
+            // STAFF não pode mudar seu próprio role
+            if (data.role) {
+                throw new Error('Você não tem permissão para alterar o role');
+            }
+        }
+
+        // ADMIN não pode mudar role de outros usuários (apenas via banco ou lógica específica)
+        // Mas pode atualizar qualquer campo de qualquer usuário
+        if (currentUserRole === 'ADMIN' && data.role && id !== currentUserId) {
+
+             throw new Error('Não é possível alterar role de outros usuários');
         }
 
         // Se o email está sendo alterado, verificar se já existe
@@ -35,7 +53,7 @@ class UpdateUserService {
 
         if (data.name) updateData.name = data.name;
         if (data.email) updateData.email = data.email;
-        if (data.role) updateData.role = data.role;
+        if (data.role && currentUserRole === 'ADMIN') updateData.role = data.role;
 
         // Hash da senha se fornecida
         if (data.password) {
@@ -52,6 +70,7 @@ class UpdateUserService {
                 name: true,
                 email: true,
                 role: true,
+                createdById: true,
                 createdAt: true,
                 updatedAt: true,
             },
