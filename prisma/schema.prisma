@@ -13,6 +13,11 @@ enum Role{
   ADMIN
 }
 
+enum TimeRecordType{
+  START
+  STOP
+}
+
 model User{
   id String @id @default(uuid())
   name String
@@ -25,6 +30,22 @@ model User{
   createdBy User? @relation("StaffCreatedByAdmin", fields: [createdById], references: [id], onDelete: SetNull)
   staffCreated User[] @relation("StaffCreatedByAdmin")
 
+  // Relação: Registros de ponto do usuário
+  timeRecords TimeRecord[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TimeRecord{
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type TimeRecordType
+  timestamp DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, timestamp])
 }
