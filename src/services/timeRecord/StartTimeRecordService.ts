@@ -1,11 +1,12 @@
 import { prismaClient } from '../../config/prismaClient';
 import { TimeRecordType } from '../../../generated/prisma/enums';
 import { ValidateTimeRecordService } from './ValidateTimeRecordService';
+import { getCurrentLocalDate } from '../../utils/dateUtils';
 
 class StartTimeRecordService {
     async execute(userId: string) {
         const validateService = new ValidateTimeRecordService();
-        const now = new Date();
+        const now = getCurrentLocalDate();
 
         const canStart = await validateService.canStart(userId, now);
         if (!canStart) {

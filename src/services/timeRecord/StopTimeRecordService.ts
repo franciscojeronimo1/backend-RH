@@ -2,12 +2,13 @@ import { prismaClient } from '../../config/prismaClient';
 import { TimeRecordType } from '../../../generated/prisma/enums';
 import { ValidateTimeRecordService } from './ValidateTimeRecordService';
 import { CalculateTotalService } from './CalculateTotalService';
+import { getCurrentLocalDate, getStartOfDay, getEndOfDay } from '../../utils/dateUtils';
 
 class StopTimeRecordService {
     async execute(userId: string) {
         const validateService = new ValidateTimeRecordService();
         const calculateService = new CalculateTotalService();
-        const now = new Date();
+        const now = getCurrentLocalDate();
 
         const canStop = await validateService.canStop(userId, now);
         if (!canStop) {
@@ -31,11 +32,8 @@ class StopTimeRecordService {
             },
         });
 
-        const startOfDay = new Date(now);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(now);
-        endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = getStartOfDay(now);
+        const endOfDay = getEndOfDay(now);
 
         const dayRecords = await prismaClient.timeRecord.findMany({
             where: {

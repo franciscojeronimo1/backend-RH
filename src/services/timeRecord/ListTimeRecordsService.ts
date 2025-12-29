@@ -1,5 +1,6 @@
 import { prismaClient } from '../../config/prismaClient';
 import { CalculateTotalService } from './CalculateTotalService';
+import { getStartOfDay, getEndOfDay, getCurrentLocalDate, parseLocalDate, isValidDateString } from '../../utils/dateUtils';
 
 class ListTimeRecordsService {
     async execute(userId: string, targetUserId: string | null, date?: string) {
@@ -17,13 +18,14 @@ class ListTimeRecordsService {
             }
         }
 
-        // Definir data (hoje se não fornecida)
-        const targetDate = date ? new Date(date) : new Date();
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Validar formato de data se fornecida
+        if (date && !isValidDateString(date)) {
+            throw new Error('Data inválida. Use o formato YYYY-MM-DD');
+        }
+
+        const targetDate = date ? parseLocalDate(date) : getCurrentLocalDate();
+        const startOfDay = getStartOfDay(targetDate);
+        const endOfDay = getEndOfDay(targetDate);
 
         const records = await prismaClient.timeRecord.findMany({
             where: {

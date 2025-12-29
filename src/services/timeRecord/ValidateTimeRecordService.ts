@@ -1,14 +1,12 @@
 import { prismaClient } from '../../config/prismaClient';
 import { TimeRecordType } from '../../../generated/prisma/enums';
+import { getStartOfDay, getEndOfDay } from '../../utils/dateUtils';
 
 class ValidateTimeRecordService {
 
     async canStart(userId: string, date: Date): Promise<boolean> {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = getStartOfDay(date);
+        const endOfDay = getEndOfDay(date);
 
         const lastRecord = await prismaClient.timeRecord.findFirst({
             where: {
@@ -31,11 +29,8 @@ class ValidateTimeRecordService {
     }
 
     async canStop(userId: string, date: Date): Promise<boolean> {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = getStartOfDay(date);
+        const endOfDay = getEndOfDay(date);
 
         const lastRecord = await prismaClient.timeRecord.findFirst({
             where: {
