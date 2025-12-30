@@ -6,6 +6,14 @@ class LoginService {
     async execute(email: string, password: string) {
         const user = await prismaClient.user.findUnique({
             where: { email },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                password: true,
+                role: true,
+                organizationId: true,
+            },
         });
 
         // Sempre verificar senha mesmo se usuário não existir (proteção contra timing attacks)
@@ -23,6 +31,15 @@ class LoginService {
             throw new Error('Email ou senha incorretos');
         }
 
+        // Buscar organização do usuário
+        const organization = user.organizationId ? await prismaClient.organization.findUnique({
+            where: { id: user.organizationId },
+            select: {
+                id: true,
+                name: true,
+            },
+        }) : null;
+
         const token = generateToken({
             id: user.id,
             email: user.email,
@@ -35,7 +52,12 @@ class LoginService {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                organizationId: user.organizationId,
             },
+            organization: organization ? {
+                id: organization.id,
+                name: organization.name,
+            } : null,
             token,
         };
     }

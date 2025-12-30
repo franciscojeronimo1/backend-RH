@@ -18,12 +18,34 @@ enum TimeRecordType{
   STOP
 }
 
+model Organization{
+  id String @id @default(uuid())
+  name String
+  cnpj String? @unique
+  email String?
+  phone String?
+  address String?
+
+  // Relações
+  users User[]
+  products Product[]
+  stockEntries StockEntry[]
+  stockExits StockExit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User{
   id String @id @default(uuid())
   name String
   email String @unique
   password String
   role Role @default(ADMIN)
+
+  // Relação: Organização (tenant)
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Relação: STAFF vinculado ao ADMIN que o criou
   createdById String?
@@ -33,8 +55,14 @@ model User{
   // Relação: Registros de ponto do usuário
   timeRecords TimeRecord[]
 
+  // Relações de estoque
+  stockEntries StockEntry[]
+  stockExits StockExit[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
 }
 
 model TimeRecord{
@@ -48,4 +76,102 @@ model TimeRecord{
   updatedAt DateTime @updatedAt
 
   @@index([userId, timestamp])
+}
+
+model Product{
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Identificação
+  name String
+  code String?
+  sku String?
+  category String?
+
+  // Estoque
+  currentStock Int @default(0)
+  minStock Int @default(0)
+  unit String @default("UN")
+
+  // Preços
+  costPrice Decimal? @db.Decimal(10, 2)
+  averageCost Decimal? @db.Decimal(10, 2)
+
+  // Status
+  active Boolean @default(true)
+
+  // Relações
+  stockEntries StockEntry[]
+  stockExits StockExit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, category])
+}
+
+model StockEntry{
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Dados da entrada
+  quantity Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  // Fornecedor
+  supplierName String?
+  supplierDoc String?
+
+  // Nota fiscal
+  invoiceNumber String?
+
+  // Usuário que registrou
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Observações
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, productId])
+}
+
+model StockExit{
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Dados da saída
+  quantity Int
+
+  // Onde foi usado
+  projectName String?
+  clientName String?
+  serviceType String?
+
+  // Usuário que registrou
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Observações
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, productId])
 }

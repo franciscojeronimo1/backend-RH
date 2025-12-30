@@ -20,6 +20,10 @@ class CreateStaffService {
             throw new Error('Apenas administradores podem criar usuários STAFF');
         }
 
+        if (!admin.organizationId) {
+            throw new Error('Administrador não está vinculado a uma organização');
+        }
+
         const existingUser = await prismaClient.user.findUnique({
             where: { email }
         });
@@ -31,7 +35,7 @@ class CreateStaffService {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Criar STAFF vinculado ao ADMIN
+        // Criar STAFF vinculado ao ADMIN e à mesma organização
         const staff = await prismaClient.user.create({
             data: {
                 name,
@@ -39,6 +43,7 @@ class CreateStaffService {
                 password: hashedPassword,
                 role: Role.STAFF,
                 createdById: adminId,
+                organizationId: admin.organizationId, // Mesma organização do ADMIN
             },
             select: {
                 id: true,

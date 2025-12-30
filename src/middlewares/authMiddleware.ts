@@ -10,7 +10,7 @@ interface TokenPayload {
 declare global {
   namespace Express {
     interface Request {
-      user?: TokenPayload;
+      user?: TokenPayload & { organizationId?: string };
     }
   }
 }
