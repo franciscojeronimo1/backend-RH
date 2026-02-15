@@ -120,7 +120,7 @@ class StockReportService {
         return {
             totalValue,
             totalProducts: products.length,
-            productsWithStock: products.filter(p => p.currentStock > 0).length,
+            productsWithStock: products.filter((p) => p.currentStock > 0).length,
         };
     }
     async getCurrentStock(organizationId, category) {

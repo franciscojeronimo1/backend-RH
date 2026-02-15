@@ -52,8 +52,9 @@ class ListTimeRecordsService {
         const calculateService = new CalculateTotalService();
         const summary = calculateService.calculateDayTotal(records);
 
+        type TimeRecordWithUser = (typeof records)[number];
         return {
-            records: records.map((record) => ({
+            records: records.map((record: TimeRecordWithUser) => ({
                 id: record.id,
                 type: record.type,
                 timestamp: record.timestamp,

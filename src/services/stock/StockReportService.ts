@@ -48,7 +48,8 @@ class StockReportService {
             },
         });
 
-        const grouped = exits.reduce((acc: any, exit) => {
+        type ExitWithProduct = (typeof exits)[number];
+        const grouped = exits.reduce((acc: Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>, exit: ExitWithProduct) => {
             const productId = exit.productId;
             if (!acc[productId]) {
                 acc[productId] = {
@@ -60,7 +61,7 @@ class StockReportService {
             acc[productId].totalQuantity += exit.quantity;
             acc[productId].exits.push(exit);
             return acc;
-        }, {});
+        }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>);
 
         return {
             date: formatLocalDate(targetDate),
@@ -93,7 +94,8 @@ class StockReportService {
             },
         });
 
-        const grouped = exits.reduce((acc: any, exit) => {
+        type ExitWithProduct = (typeof exits)[number];
+        const grouped = exits.reduce((acc: Record<string, { product: ExitWithProduct['product']; totalQuantity: number }>, exit: ExitWithProduct) => {
             const productId = exit.productId;
             if (!acc[productId]) {
                 acc[productId] = {
@@ -103,7 +105,7 @@ class StockReportService {
             }
             acc[productId].totalQuantity += exit.quantity;
             return acc;
-        }, {});
+        }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number }>);
 
         return {
             startDate: formatLocalDate(start),
@@ -124,7 +126,8 @@ class StockReportService {
             },
         });
 
-        const totalValue = products.reduce((sum, product) => {
+        type ProductStock = (typeof products)[number];
+        const totalValue = products.reduce((sum: number, product: ProductStock) => {
             const cost = product.averageCost ? Number(product.averageCost) : 0;
             return sum + (product.currentStock * cost);
         }, 0);
@@ -132,7 +135,7 @@ class StockReportService {
         return {
             totalValue,
             totalProducts: products.length,
-            productsWithStock: products.filter(p => p.currentStock > 0).length,
+            productsWithStock: products.filter((p: ProductStock) => p.currentStock > 0).length,
         };
     }
 
