@@ -7,15 +7,19 @@ class ListProductsController {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
 
-        const { category, includeInactive } = req.query;
+        const { category, includeInactive, page, limit } = req.query;
         const listProductsService = new ListProductsService();
-        const products = await listProductsService.execute(
+        const result = await listProductsService.execute(
             req.user.organizationId,
             category as string | undefined,
-            includeInactive === 'true'
+            includeInactive === 'true',
+            {
+                page: page ? parseInt(String(page), 10) : undefined,
+                limit: limit ? parseInt(String(limit), 10) : undefined,
+            }
         );
 
-        return res.json({ products });
+        return res.json(result);
     }
 }
 
