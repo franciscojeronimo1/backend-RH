@@ -3,7 +3,6 @@ import { prismaClient } from '../../config/prismaClient';
 class ListUsersService {
     async execute(userRole: string, userId?: string) {
         // STAFF só vê seus próprios dados e os STAFF que ele criou (se houver)
-        // ADMIN vê todos os usuários
         if (userRole === 'STAFF' && userId) {
             const users = await prismaClient.user.findMany({
                 where: {
@@ -28,8 +27,16 @@ class ListUsersService {
             return users;
         }
 
-        // ADMIN vê todos os usuários com relação
+        // ADMIN vê a si mesmo e apenas os STAFF (colaboradores) que ele criou
         const users = await prismaClient.user.findMany({
+            where: userId
+                ? {
+                      OR: [
+                          { id: userId }, // Próprio usuário
+                          { createdById: userId }, // Colaboradores criados por este ADMIN
+                      ],
+                  }
+                : undefined,
             select: {
                 id: true,
                 name: true,
