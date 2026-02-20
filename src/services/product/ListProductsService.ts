@@ -20,7 +20,6 @@ interface PaginatedResult {
         hasPrev: boolean;
     };
 }
-
 class ListProductsService {
     async execute(
         organizationId: string,
