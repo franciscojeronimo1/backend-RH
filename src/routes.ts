@@ -18,6 +18,10 @@ import { ListProductsController } from './controllers/product/ListProductsContro
 import { GetProductByIdController } from './controllers/product/GetProductByIdController';
 import { UpdateProductController } from './controllers/product/UpdateProductController';
 import { DeleteProductController } from './controllers/product/DeleteProductController';
+import { ListCategoriesController } from './controllers/category/ListCategoriesController';
+import { CreateCategoryController } from './controllers/category/CreateCategoryController';
+import { UpdateCategoryController } from './controllers/category/UpdateCategoryController';
+import { DeleteCategoryController } from './controllers/category/DeleteCategoryController';
 import { CreateStockEntryController } from './controllers/stock/CreateStockEntryController';
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
 import { ListStockEntriesController } from './controllers/stock/ListStockEntriesController';
@@ -32,6 +36,7 @@ import { loginLimiter, createUserLimiter } from './middlewares/rateLimiter';
 import { createUserSchema, createStaffSchema, updateUserSchema } from './schemas/userSchema';
 import { loginSchema } from './schemas/authSchema';
 import { createProductSchema, updateProductSchema } from './schemas/productSchema';
+import { createCategorySchema, updateCategorySchema } from './schemas/categorySchema';
 import { createStockEntrySchema, createStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
 
@@ -60,6 +65,12 @@ router.get("/time-records/summary", authMiddleware, asyncHandler(new GetSummaryC
 router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));
 router.get("/organizations", authMiddleware, tenantMiddleware, asyncHandler(new GetOrganizationController().handle));
 router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(updateOrganizationSchema), asyncHandler(new UpdateOrganizationController().handle));
+
+// Rotas protegidas - Categorias (requerem organização)
+router.get("/categories", authMiddleware, tenantMiddleware, asyncHandler(new ListCategoriesController().handle));
+router.post("/categories", authMiddleware, tenantMiddleware, validateSchema(createCategorySchema), asyncHandler(new CreateCategoryController().handle));
+router.put("/categories/:id", authMiddleware, tenantMiddleware, validateSchema(updateCategorySchema), asyncHandler(new UpdateCategoryController().handle));
+router.delete("/categories/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteCategoryController().handle));
 
 // Rotas protegidas - Produtos (requerem organização)
 router.post("/products", authMiddleware, tenantMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));

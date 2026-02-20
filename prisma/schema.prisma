@@ -29,11 +29,25 @@ model Organization{
   // Relações
   users User[]
   products Product[]
+  categories Category[]
   stockEntries StockEntry[]
   stockExits StockExit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Category{
+  id String @id @default(uuid())
+  name String
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model User{

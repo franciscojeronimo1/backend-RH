@@ -56,6 +56,14 @@ export const errorHandler = (
         });
     }
 
+    // Erros de duplicidade
+    if (err.message.includes('já existe')) {
+        return res.status(400).json({
+            error: 'Erro de validação',
+            message: err.message,
+        });
+    }
+
     // Erros de recurso não encontrado
     if (err.message.includes('não encontrado')) {
         return res.status(404).json({
