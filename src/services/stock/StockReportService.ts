@@ -158,7 +158,16 @@ class StockReportService {
             ],
         });
 
-        return products;
+        const productsWithTotalValue = products.map((product) => {
+            const averageCost = product.averageCost ? Number(product.averageCost) : 0;
+            const totalValue = product.currentStock * averageCost;
+            return {
+                ...product,
+                totalValue,
+            };
+        });
+
+        return productsWithTotalValue;
     }
 }
 
