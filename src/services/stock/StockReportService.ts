@@ -1,6 +1,15 @@
 import { prismaClient } from '../../config/prismaClient';
 import { getStartOfDay, getEndOfDay, parseLocalDate, getCurrentLocalDate, formatLocalDate } from '../../utils/dateUtils';
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+interface PaginationParams {
+    page?: number;
+    limit?: number;
+}
+
 class StockReportService {
 
     async getLowStockProducts(organizationId: string) {
@@ -146,7 +155,11 @@ class StockReportService {
     }
 
 
-    async getCurrentStock(organizationId: string, category?: string) {
+    async getCurrentStock(
+        organizationId: string,
+        category?: string,
+        paginationParams?: PaginationParams
+    ) {
         const where: any = {
             organizationId,
             active: true,
@@ -156,13 +169,25 @@ class StockReportService {
             where.category = category;
         }
 
-        const products = await prismaClient.product.findMany({
-            where,
-            orderBy: [
-                { category: 'asc' },
-                { name: 'asc' },
-            ],
-        });
+        const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);
+        const limit = Math.min(
+            MAX_LIMIT,
+            Math.max(1, paginationParams?.limit ?? DEFAULT_LIMIT)
+        );
+        const skip = (page - 1) * limit;
+
+        const [products, total] = await Promise.all([
+            prismaClient.product.findMany({
+                where,
+                orderBy: [
+                    { category: 'asc' },
+                    { name: 'asc' },
+                ],
+                skip,
+                take: limit,
+            }),
+            prismaClient.product.count({ where }),
+        ]);
 
         const productsWithTotalValue = products.map((product) => {
             const averageCost = product.averageCost ? Number(product.averageCost) : 0;
@@ -173,7 +198,19 @@ class StockReportService {
             };
         });
 
-        return productsWithTotalValue;
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            products: productsWithTotalValue,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
     }
 }
 

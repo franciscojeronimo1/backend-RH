@@ -59,14 +59,18 @@ class StockReportController {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
 
-        const { category } = req.query;
+        const { category, page, limit } = req.query;
         const stockReportService = new StockReportService();
-        const products = await stockReportService.getCurrentStock(
+        const result = await stockReportService.getCurrentStock(
             req.user.organizationId,
-            category as string | undefined
+            category as string | undefined,
+            {
+                page: page ? parseInt(String(page), 10) : undefined,
+                limit: limit ? parseInt(String(limit), 10) : undefined,
+            }
         );
 
-        return res.json({ products });
+        return res.json(result);
     }
 }
 
