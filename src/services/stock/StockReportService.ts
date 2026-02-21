@@ -92,25 +92,31 @@ class StockReportService {
                     },
                 },
             },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
 
         type ExitWithProduct = (typeof exits)[number];
-        const grouped = exits.reduce((acc: Record<string, { product: ExitWithProduct['product']; totalQuantity: number }>, exit: ExitWithProduct) => {
+        const grouped = exits.reduce((acc: Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>, exit: ExitWithProduct) => {
             const productId = exit.productId;
             if (!acc[productId]) {
                 acc[productId] = {
                     product: exit.product,
                     totalQuantity: 0,
+                    exits: [],
                 };
             }
             acc[productId].totalQuantity += exit.quantity;
+            acc[productId].exits.push(exit);
             return acc;
-        }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number }>);
+        }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>);
 
         return {
             startDate: formatLocalDate(start),
             endDate: formatLocalDate(end),
             products: Object.values(grouped),
+            totalExits: exits.length,
         };
     }
 
