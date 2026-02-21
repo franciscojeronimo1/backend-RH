@@ -16,11 +16,11 @@ if (!connectionString) {
 
 const pool = new Pool({
   connectionString,
-  // Limites de conexão para evitar sobrecarga
-  max: 20, // máximo de 20 conexões no pool
-  min: 5,  // mínimo de 5 conexões mantidas
-  idleTimeoutMillis: 30000, // fecha conexões idle após 30s
-  connectionTimeoutMillis: 2000, // timeout de 2s para estabelecer conexão
+  // Otimizado para Neon (scale-to-zero): evita conexões "zumbis" quando o compute suspende
+  max: 10,
+  min: 0,  // permite fechar todas as conexões quando idle - evita conexões mortas após Neon suspender
+  idleTimeoutMillis: 10000, // fecha conexões ociosas após 10s (Neon recomenda)
+  connectionTimeoutMillis: 10000, // 10s para cold start quando Neon "acorda" do scale-to-zero
 });
 
 // Tratamento de erros do pool
