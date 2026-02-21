@@ -12,21 +12,50 @@ interface PaginationParams {
 
 class StockReportService {
 
-    async getLowStockProducts(organizationId: string) {
-        const products = await prismaClient.product.findMany({
-            where: {
-                organizationId,
-                active: true,
-                currentStock: {
-                    lte: prismaClient.product.fields.minStock,
-                },
+    async getLowStockProducts(
+        organizationId: string,
+        paginationParams?: PaginationParams
+    ) {
+        const where = {
+            organizationId,
+            active: true,
+            currentStock: {
+                lte: prismaClient.product.fields.minStock,
             },
-            orderBy: {
-                currentStock: 'asc',
-            },
-        });
+        };
 
-        return products;
+        const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);
+        const limit = Math.min(
+            MAX_LIMIT,
+            Math.max(1, paginationParams?.limit ?? DEFAULT_LIMIT)
+        );
+        const skip = (page - 1) * limit;
+
+        const [products, total] = await Promise.all([
+            prismaClient.product.findMany({
+                where,
+                orderBy: {
+                    currentStock: 'asc',
+                },
+                skip,
+                take: limit,
+            }),
+            prismaClient.product.count({ where }),
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            products,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
     }
 
 

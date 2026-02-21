@@ -7,10 +7,17 @@ class StockReportController {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
 
+        const { page, limit } = req.query;
         const stockReportService = new StockReportService();
-        const products = await stockReportService.getLowStockProducts(req.user.organizationId);
+        const result = await stockReportService.getLowStockProducts(
+            req.user.organizationId,
+            {
+                page: page ? parseInt(String(page), 10) : undefined,
+                limit: limit ? parseInt(String(limit), 10) : undefined,
+            }
+        );
 
-        return res.json({ products });
+        return res.json(result);
     }
 
     async getDailyUsage(req: Request, res: Response) {
