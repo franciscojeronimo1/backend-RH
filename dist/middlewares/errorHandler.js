@@ -39,6 +39,12 @@ const errorHandler = (err, _req, res, _next) => {
             message: err.message,
         });
     }
+    if (err.message.includes('já existe')) {
+        return res.status(400).json({
+            error: 'Erro de validação',
+            message: err.message,
+        });
+    }
     if (err.message.includes('não encontrado')) {
         return res.status(404).json({
             error: 'Recurso não encontrado',

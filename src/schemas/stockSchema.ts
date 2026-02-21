@@ -16,6 +16,7 @@ export const createStockExitSchema = z.object({
     body: z.object({
         productId: z.string().uuid({ message: "ID do produto inválido" }),
         quantity: z.number().int().positive({ message: "Quantidade deve ser um número inteiro positivo" }),
+        unitPrice: z.number().positive({ message: "Preço unitário de venda deve ser positivo" }).optional(),
         projectName: z.string().optional(),
         clientName: z.string().optional(),
         serviceType: z.string().optional(),

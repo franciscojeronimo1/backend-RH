@@ -28,6 +28,14 @@ class ListUsersService {
             return users;
         }
         const users = await prismaClient_1.prismaClient.user.findMany({
+            where: userId
+                ? {
+                    OR: [
+                        { id: userId },
+                        { createdById: userId },
+                    ],
+                }
+                : undefined,
             select: {
                 id: true,
                 name: true,

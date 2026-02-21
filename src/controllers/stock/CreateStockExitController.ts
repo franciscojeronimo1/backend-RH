@@ -10,6 +10,7 @@ class CreateStockExitController {
         const {
             productId,
             quantity,
+            unitPrice,
             projectName,
             clientName,
             serviceType,
@@ -25,7 +26,8 @@ class CreateStockExitController {
             projectName,
             clientName,
             serviceType,
-            notes
+            notes,
+            unitPrice
         );
 
         return res.status(201).json({

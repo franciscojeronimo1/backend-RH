@@ -1,4 +1,7 @@
 import { prismaClient } from '../../config/prismaClient';
+// @ts-ignore - Import do Decimal do Prisma gerado
+const PrismaModule = require('../../../generated/prisma/internal/prismaNamespace');
+const { Decimal } = PrismaModule;
 
 class CreateStockExitService {
     async execute(
@@ -9,7 +12,8 @@ class CreateStockExitService {
         projectName?: string,
         clientName?: string,
         serviceType?: string,
-        notes?: string
+        notes?: string,
+        unitPrice?: number
     ) {
         const product = await prismaClient.product.findFirst({
             where: {
@@ -27,17 +31,36 @@ class CreateStockExitService {
             );
         }
 
+        const exitData: {
+            organizationId: string;
+            productId: string;
+            userId: string;
+            quantity: number;
+            projectName?: string;
+            clientName?: string;
+            serviceType?: string;
+            notes?: string;
+            unitPrice?: typeof Decimal;
+            totalPrice?: typeof Decimal;
+        } = {
+            organizationId,
+            productId,
+            userId,
+            quantity,
+            projectName,
+            clientName,
+            serviceType,
+            notes,
+        };
+
+        if (unitPrice !== undefined && unitPrice !== null) {
+            const totalPrice = quantity * unitPrice;
+            exitData.unitPrice = new Decimal(unitPrice);
+            exitData.totalPrice = new Decimal(totalPrice);
+        }
+
         const exit = await prismaClient.stockExit.create({
-            data: {
-                organizationId,
-                productId,
-                userId,
-                quantity,
-                projectName,
-                clientName,
-                serviceType,
-                notes,
-            },
+            data: exitData,
             include: {
                 product: {
                     select: {

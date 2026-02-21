@@ -7,9 +7,9 @@ class CreateStockExitController {
         if (!req.user || !req.user.organizationId) {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
-        const { productId, quantity, projectName, clientName, serviceType, notes, } = req.body;
+        const { productId, quantity, unitPrice, projectName, clientName, serviceType, notes, } = req.body;
         const createStockExitService = new CreateStockExitService_1.CreateStockExitService();
-        const exit = await createStockExitService.execute(req.user.organizationId, productId, req.user.id, quantity, projectName, clientName, serviceType, notes);
+        const exit = await createStockExitService.execute(req.user.organizationId, productId, req.user.id, quantity, projectName, clientName, serviceType, notes, unitPrice);
         return res.status(201).json({
             message: 'Saída registrada com sucesso',
             exit,

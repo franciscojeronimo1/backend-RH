@@ -12,10 +12,10 @@ if (!connectionString) {
 }
 const pool = new pg_1.Pool({
     connectionString,
-    max: 20,
-    min: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 10000,
 });
 exports.pool = pool;
 pool.on('error', (err) => {

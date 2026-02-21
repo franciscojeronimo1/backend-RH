@@ -170,6 +170,8 @@ model StockExit{
 
   // Dados da saída
   quantity Int
+  unitPrice Decimal? @db.Decimal(10, 2)
+  totalPrice Decimal? @db.Decimal(10, 2)
 
   // Onde foi usado
   projectName String?
