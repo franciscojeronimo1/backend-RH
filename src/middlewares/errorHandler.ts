@@ -10,19 +10,27 @@ export const errorHandler = (
 
     // Erros do Prisma
     if (err.name === 'PrismaClientKnownRequestError') {
+        const code = (err as any).code;
         // Erro de constraint única (email duplicado, etc)
-        if ((err as any).code === 'P2002') {
+        if (code === 'P2002') {
             return res.status(400).json({
                 error: 'Erro de validação',
                 message: 'Este email já está em uso',
             });
         }
-        
         // Usuário não encontrado
-        if ((err as any).code === 'P2025') {
+        if (code === 'P2025') {
             return res.status(404).json({
                 error: 'Recurso não encontrado',
                 message: err.message,
+            });
+        }
+        // Falha de conexão / servidor inacessível / timeout (ex.: Neon acordando do scale-to-zero)
+        if (code === 'P1001' || code === 'P1017' || code === 'P2024') {
+            return res.status(503).json({
+                error: 'Serviço temporariamente indisponível',
+                message: 'Falha ao conectar ao banco. Tente novamente em instantes.',
+                code: 'DATABASE_UNAVAILABLE',
             });
         }
 

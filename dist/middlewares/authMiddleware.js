@@ -30,7 +30,11 @@ const authMiddleware = (req, res, next) => {
         return next();
     }
     catch (error) {
-        return res.status(401).json({ error: "Token inválido ou expirado" });
+        const isExpired = error instanceof Error && error.name === "TokenExpiredError";
+        return res.status(401).json({
+            error: "Token inválido ou expirado",
+            code: isExpired ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+        });
     }
 };
 exports.authMiddleware = authMiddleware;

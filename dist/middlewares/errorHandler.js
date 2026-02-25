@@ -4,16 +4,24 @@ exports.errorHandler = void 0;
 const errorHandler = (err, _req, res, _next) => {
     console.error('Erro:', err);
     if (err.name === 'PrismaClientKnownRequestError') {
-        if (err.code === 'P2002') {
+        const code = err.code;
+        if (code === 'P2002') {
             return res.status(400).json({
                 error: 'Erro de validação',
                 message: 'Este email já está em uso',
             });
         }
-        if (err.code === 'P2025') {
+        if (code === 'P2025') {
             return res.status(404).json({
                 error: 'Recurso não encontrado',
                 message: err.message,
+            });
+        }
+        if (code === 'P1001' || code === 'P1017' || code === 'P2024') {
+            return res.status(503).json({
+                error: 'Serviço temporariamente indisponível',
+                message: 'Falha ao conectar ao banco. Tente novamente em instantes.',
+                code: 'DATABASE_UNAVAILABLE',
             });
         }
         return res.status(400).json({

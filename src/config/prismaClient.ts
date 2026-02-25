@@ -20,7 +20,7 @@ const pool = new Pool({
   max: 10,
   min: 0,  // permite fechar todas as conexões quando idle - evita conexões mortas após Neon suspender
   idleTimeoutMillis: 10000, // fecha conexões ociosas após 10s (Neon recomenda)
-  connectionTimeoutMillis: 10000, // 10s para cold start quando Neon "acorda" do scale-to-zero
+  connectionTimeoutMillis: 20000, // 20s para cold start quando Neon "acorda" do scale-to-zero (reduz erros intermitentes)
 });
 
 // Tratamento de erros do pool

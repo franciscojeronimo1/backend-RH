@@ -7,9 +7,13 @@ class StockReportController {
         if (!req.user || !req.user.organizationId) {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
+        const { page, limit } = req.query;
         const stockReportService = new StockReportService_1.StockReportService();
-        const products = await stockReportService.getLowStockProducts(req.user.organizationId);
-        return res.json({ products });
+        const result = await stockReportService.getLowStockProducts(req.user.organizationId, {
+            page: page ? parseInt(String(page), 10) : undefined,
+            limit: limit ? parseInt(String(limit), 10) : undefined,
+        });
+        return res.json(result);
     }
     async getDailyUsage(req, res) {
         if (!req.user || !req.user.organizationId) {
@@ -41,10 +45,13 @@ class StockReportController {
         if (!req.user || !req.user.organizationId) {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
-        const { category } = req.query;
+        const { category, page, limit } = req.query;
         const stockReportService = new StockReportService_1.StockReportService();
-        const products = await stockReportService.getCurrentStock(req.user.organizationId, category);
-        return res.json({ products });
+        const result = await stockReportService.getCurrentStock(req.user.organizationId, category, {
+            page: page ? parseInt(String(page), 10) : undefined,
+            limit: limit ? parseInt(String(limit), 10) : undefined,
+        });
+        return res.json(result);
     }
 }
 exports.StockReportController = StockReportController;

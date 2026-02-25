@@ -15,7 +15,7 @@ const pool = new pg_1.Pool({
     max: 10,
     min: 0,
     idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 20000,
 });
 exports.pool = pool;
 pool.on('error', (err) => {

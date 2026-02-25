@@ -10,7 +10,7 @@ const generateToken = (payload) => {
     if (!jwtSecret) {
         throw new Error('JWT_SECRET não está configurado. Configure a variável de ambiente JWT_SECRET.');
     }
-    return jsonwebtoken_1.default.sign(payload, jwtSecret, { expiresIn: '24h' });
+    return jsonwebtoken_1.default.sign(payload, jwtSecret, { expiresIn: '7d' });
 };
 exports.generateToken = generateToken;
 //# sourceMappingURL=generateToken.js.map
