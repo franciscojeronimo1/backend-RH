@@ -7,9 +7,13 @@ class GetSummaryController {
         if (!req.user) {
             return res.status(401).json({ error: 'Usuário não autenticado' });
         }
-        const { userId, date } = req.query;
+        const { userId, date, periodDays, month } = req.query;
         const listTimeRecordsService = new ListTimeRecordsService_1.ListTimeRecordsService();
-        const result = await listTimeRecordsService.execute(req.user.id, userId, date);
+        const result = await listTimeRecordsService.execute(req.user.id, userId, {
+            date: date,
+            periodDays: periodDays !== undefined ? Number(periodDays) : undefined,
+            month: month,
+        });
         return res.json({ summary: result.summary });
     }
 }

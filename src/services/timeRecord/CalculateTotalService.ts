@@ -7,7 +7,7 @@ interface Period {
     minutes: number;
 }
 
-interface Summary {
+export interface Summary {
     date: string;
     periods: Array<{
         start: string;
@@ -17,6 +17,9 @@ interface Summary {
     totalMinutes: number;
     totalHours: string;
     status: 'started' | 'stopped';
+    /** Preenchido quando o resumo é por período (ex: últimos 30 dias ou mês) */
+    startDate?: string;
+    endDate?: string;
 }
 
 class CalculateTotalService {

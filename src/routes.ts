@@ -27,6 +27,7 @@ import { CreateStockExitController } from './controllers/stock/CreateStockExitCo
 import { ListStockEntriesController } from './controllers/stock/ListStockEntriesController';
 import { ListStockExitsController } from './controllers/stock/ListStockExitsController';
 import { StockReportController } from './controllers/stock/StockReportController';
+import { HealthController } from './controllers/health/HealthController';
 import { validateSchema } from './middlewares/validateSchema';
 import { asyncHandler } from './middlewares/asyncHandler';
 import { authMiddleware } from './middlewares/authMiddleware';
@@ -41,6 +42,9 @@ import { createStockEntrySchema, createStockExitSchema, createOrganizationSchema
 import { updateOrganizationSchema } from './schemas/organizationSchema';
 
 const router = Router();
+
+// Health check (sem auth, sem rate limit pesado) - front pode chamar no load do app para aquecer o banco
+router.get("/health", asyncHandler(new HealthController().handle));
 
 // Rotas públicas com rate limiting específico
 router.post("/auth/login", loginLimiter, validateSchema(loginSchema), asyncHandler(new LoginController().handle));

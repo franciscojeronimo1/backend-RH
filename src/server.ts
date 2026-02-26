@@ -26,8 +26,13 @@ app.use(router);
 // Error handler (deve ser o último)
 app.use(errorHandler);
 
-    const PORT = process.env.PORT || 3333;
+const PORT = process.env.PORT || 3333;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Timeout de requisição: 60s (evita que o cliente desista antes do backend responder em cold start do Neon)
+server.timeout = 60000;
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;

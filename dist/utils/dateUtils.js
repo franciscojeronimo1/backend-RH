@@ -11,6 +11,10 @@ exports.formatLocalDate = formatLocalDate;
 exports.formatLocalTime = formatLocalTime;
 exports.diffInMinutes = diffInMinutes;
 exports.isValidDateString = isValidDateString;
+exports.getStartOfLastDays = getStartOfLastDays;
+exports.getStartOfMonth = getStartOfMonth;
+exports.getEndOfMonth = getEndOfMonth;
+exports.isValidMonthString = isValidMonthString;
 const dayjs_1 = __importDefault(require("dayjs"));
 const utc_1 = __importDefault(require("dayjs/plugin/utc"));
 const timezone_1 = __importDefault(require("dayjs/plugin/timezone"));
@@ -41,5 +45,17 @@ function diffInMinutes(start, end) {
 }
 function isValidDateString(dateString) {
     return (0, dayjs_1.default)(dateString, 'YYYY-MM-DD', true).isValid();
+}
+function getStartOfLastDays(days) {
+    return (0, dayjs_1.default)().subtract(days, 'day').startOf('day').toDate();
+}
+function getStartOfMonth(monthString) {
+    return (0, dayjs_1.default)(monthString + '-01').startOf('month').toDate();
+}
+function getEndOfMonth(monthString) {
+    return (0, dayjs_1.default)(monthString + '-01').endOf('month').toDate();
+}
+function isValidMonthString(monthString) {
+    return (0, dayjs_1.default)(monthString, 'YYYY-MM', true).isValid();
 }
 //# sourceMappingURL=dateUtils.js.map

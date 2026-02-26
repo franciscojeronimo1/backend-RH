@@ -71,3 +71,32 @@ export function isValidDateString(dateString: string): boolean {
     return dayjs(dateString, 'YYYY-MM-DD', true).isValid();
 }
 
+/**
+ * Retorna o início do dia que está a N dias atrás (últimos N dias).
+ * Ex: getStartOfLastDays(30) = início do dia de 30 dias atrás
+ */
+export function getStartOfLastDays(days: number): Date {
+    return dayjs().subtract(days, 'day').startOf('day').toDate();
+}
+
+/**
+ * Retorna o início do mês (YYYY-MM). Ex: "2025-02" -> 1º dia 00:00
+ */
+export function getStartOfMonth(monthString: string): Date {
+    return dayjs(monthString + '-01').startOf('month').toDate();
+}
+
+/**
+ * Retorna o fim do mês (YYYY-MM). Ex: "2025-02" -> último dia 23:59:59
+ */
+export function getEndOfMonth(monthString: string): Date {
+    return dayjs(monthString + '-01').endOf('month').toDate();
+}
+
+/**
+ * Valida se uma string é um mês válido no formato YYYY-MM
+ */
+export function isValidMonthString(monthString: string): boolean {
+    return dayjs(monthString, 'YYYY-MM', true).isValid();
+}
+
