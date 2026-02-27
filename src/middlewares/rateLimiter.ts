@@ -1,12 +1,18 @@
 import rateLimit from 'express-rate-limit';
+import { Request } from 'express';
 
-// Rate limiter geral para todas as rotas
+// Rate limiter geral: por usuário (quando autenticado) ou por IP (rotas públicas).
+
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // máximo de 100 requisições por IP
-    message: 'Muitas requisições deste IP, tente novamente em alguns minutos.',
+    max: 300, // 300 requisições por janela (por usuário ou por IP)
+    message: 'Muitas requisições. Aguarde alguns minutos e tente novamente.',
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const user = (req as any).user;
+        return user?.id ?? req.ip ?? 'unknown';
+    },
 });
 
 // Rate limiter mais restritivo para login (proteção contra brute force)

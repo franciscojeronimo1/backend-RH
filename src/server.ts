@@ -4,6 +4,7 @@ import "dotenv/config";
 import express from 'express';
 import { router } from './routes';
 import { errorHandler } from './middlewares/errorHandler';
+import { optionalAuthMiddleware } from './middlewares/authMiddleware';
 import { generalLimiter } from './middlewares/rateLimiter';
 
 const app = express();
@@ -14,7 +15,9 @@ app.use(helmet());
 // CORS configurado
 app.use(cors());
 
-// Rate limiting geral
+// Opcional: define req.user se token válido (para rate limit por usuário em rotas autenticadas)
+app.use(optionalAuthMiddleware);
+// Rate limiting: por usuário (quando autenticado) ou por IP; 300 req/15min
 app.use(generalLimiter);
 
 // Body parser

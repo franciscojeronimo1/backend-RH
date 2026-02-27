@@ -59,3 +59,29 @@ export const authMiddleware = (
     });
   }
 };
+
+
+export const optionalAuthMiddleware = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return next();
+
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2) return next();
+    const [scheme, token = ""] = parts;
+    if (!scheme || !/^Bearer$/i.test(scheme) || !token) return next();
+
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) return next();
+
+    const decoded = jwt.verify(token, jwtSecret as string) as unknown as TokenPayload;
+    req.user = decoded;
+    return next();
+  } catch {
+    return next();
+  }
+};

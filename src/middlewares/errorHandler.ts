@@ -74,9 +74,11 @@ export const errorHandler = (
 
     // Erros de recurso não encontrado
     if (err.message.includes('não encontrado')) {
+        const isProduct = err.message.includes('Produto');
         return res.status(404).json({
             error: 'Recurso não encontrado',
             message: err.message,
+            ...(isProduct && { code: 'PRODUCT_NOT_FOUND' }),
         });
     }
 
