@@ -4,6 +4,8 @@ import { generateToken } from '../../utils/generateToken';
 
 import { Role } from '../../../generated/prisma/enums';
 
+const MAX_STAFF_PER_ADMIN = 5;
+
 class CreateStaffService {
     //Cria um novo usuário STAFF vinculado ao ADMIN que está criando
      
@@ -22,6 +24,17 @@ class CreateStaffService {
 
         if (!admin.organizationId) {
             throw new Error('Administrador não está vinculado a uma organização');
+        }
+
+        const staffCount = await prismaClient.user.count({
+            where: {
+                createdById: adminId,
+                role: Role.STAFF,
+            },
+        });
+
+        if (staffCount >= MAX_STAFF_PER_ADMIN) {
+            throw new Error(`Limite de colaboradores atingido. Máximo de ${MAX_STAFF_PER_ADMIN} por conta admin.`);
         }
 
         const existingUser = await prismaClient.user.findUnique({

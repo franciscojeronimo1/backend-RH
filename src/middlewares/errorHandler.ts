@@ -64,6 +64,14 @@ export const errorHandler = (
         });
     }
 
+    // Limite de colaboradores por admin
+    if (err.message.includes('Limite de colaboradores atingido')) {
+        return res.status(403).json({
+            error: 'Limite atingido',
+            message: err.message,
+        });
+    }
+
     // Erros de duplicidade
     if (err.message.includes('já existe')) {
         return res.status(400).json({
