@@ -25,6 +25,14 @@ class CreateUserService {
             },
         });
 
+        await prismaClient.subscription.create({
+            data: {
+                organizationId: organization.id,
+                plan: 'FREE',
+                status: 'ACTIVE',
+            },
+        });
+
         const user = await prismaClient.user.create({
             data: {
                 name,

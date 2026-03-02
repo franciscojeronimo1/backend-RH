@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authMiddleware = void 0;
+exports.optionalAuthMiddleware = exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authMiddleware = (req, res, next) => {
     try {
@@ -38,4 +38,27 @@ const authMiddleware = (req, res, next) => {
     }
 };
 exports.authMiddleware = authMiddleware;
+const optionalAuthMiddleware = (req, _res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader)
+            return next();
+        const parts = authHeader.split(" ");
+        if (parts.length !== 2)
+            return next();
+        const [scheme, token = ""] = parts;
+        if (!scheme || !/^Bearer$/i.test(scheme) || !token)
+            return next();
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret)
+            return next();
+        const decoded = jsonwebtoken_1.default.verify(token, jwtSecret);
+        req.user = decoded;
+        return next();
+    }
+    catch {
+        return next();
+    }
+};
+exports.optionalAuthMiddleware = optionalAuthMiddleware;
 //# sourceMappingURL=authMiddleware.js.map

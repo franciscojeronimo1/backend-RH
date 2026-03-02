@@ -12,6 +12,14 @@ class CreateOrganizationService {
             },
         });
 
+        await prismaClient.subscription.create({
+            data: {
+                organizationId: organization.id,
+                plan: 'FREE',
+                status: 'ACTIVE',
+            },
+        });
+
         await prismaClient.user.update({
             where: { id: userId },
             data: {

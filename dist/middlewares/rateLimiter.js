@@ -7,10 +7,14 @@ exports.createUserLimiter = exports.loginLimiter = exports.generalLimiter = void
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 exports.generalLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Muitas requisições deste IP, tente novamente em alguns minutos.',
+    max: 300,
+    message: 'Muitas requisições. Aguarde alguns minutos e tente novamente.',
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+        const user = req.user;
+        return user?.id ?? req.ip ?? 'unknown';
+    },
 });
 exports.loginLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,

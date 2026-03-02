@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const prismaClient_1 = require("../../config/prismaClient");
 const generateToken_1 = require("../../utils/generateToken");
 const enums_1 = require("../../../generated/prisma/enums");
+const MAX_STAFF_PER_ADMIN = 5;
 class CreateStaffService {
     async execute(adminId, name, email, password) {
         const admin = await prismaClient_1.prismaClient.user.findUnique({
@@ -21,6 +22,15 @@ class CreateStaffService {
         }
         if (!admin.organizationId) {
             throw new Error('Administrador não está vinculado a uma organização');
+        }
+        const staffCount = await prismaClient_1.prismaClient.user.count({
+            where: {
+                createdById: adminId,
+                role: enums_1.Role.STAFF,
+            },
+        });
+        if (staffCount >= MAX_STAFF_PER_ADMIN) {
+            throw new Error(`Limite de colaboradores atingido. Máximo de ${MAX_STAFF_PER_ADMIN} por conta admin.`);
         }
         const existingUser = await prismaClient_1.prismaClient.user.findUnique({
             where: { email }

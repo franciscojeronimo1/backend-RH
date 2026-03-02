@@ -47,6 +47,12 @@ const errorHandler = (err, _req, res, _next) => {
             message: err.message,
         });
     }
+    if (err.message.includes('Limite de colaboradores atingido')) {
+        return res.status(403).json({
+            error: 'Limite atingido',
+            message: err.message,
+        });
+    }
     if (err.message.includes('já existe')) {
         return res.status(400).json({
             error: 'Erro de validação',
@@ -54,9 +60,11 @@ const errorHandler = (err, _req, res, _next) => {
         });
     }
     if (err.message.includes('não encontrado')) {
+        const isProduct = err.message.includes('Produto');
         return res.status(404).json({
             error: 'Recurso não encontrado',
             message: err.message,
+            ...(isProduct && { code: 'PRODUCT_NOT_FOUND' }),
         });
     }
     return res.status(500).json({

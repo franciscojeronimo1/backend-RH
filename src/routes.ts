@@ -28,11 +28,13 @@ import { ListStockEntriesController } from './controllers/stock/ListStockEntries
 import { ListStockExitsController } from './controllers/stock/ListStockExitsController';
 import { StockReportController } from './controllers/stock/StockReportController';
 import { HealthController } from './controllers/health/HealthController';
+import { GetSubscriptionController } from './controllers/subscription/GetSubscriptionController';
 import { validateSchema } from './middlewares/validateSchema';
 import { asyncHandler } from './middlewares/asyncHandler';
 import { authMiddleware } from './middlewares/authMiddleware';
 import { tenantMiddleware } from './middlewares/tenantMiddleware';
 import { roleMiddleware } from './middlewares/roleMiddleware';
+import { premiumMiddleware } from './middlewares/premiumMiddleware';
 import { loginLimiter, createUserLimiter } from './middlewares/rateLimiter';
 import { createUserSchema, createStaffSchema, updateUserSchema } from './schemas/userSchema';
 import { loginSchema } from './schemas/authSchema';
@@ -51,52 +53,58 @@ router.post("/auth/login", loginLimiter, validateSchema(loginSchema), asyncHandl
 // Rota pública: cria ADMIN (apenas para criar o primeiro administrador)
 router.post("/users", createUserLimiter, validateSchema(createUserSchema), asyncHandler(new CreateUserController().handle));
 
-// Rotas protegidas - Usuários
-// Apenas ADMIN pode criar STAFF
-router.post("/users/staff", authMiddleware, roleMiddleware(['ADMIN']), validateSchema(createStaffSchema), asyncHandler(new CreateStaffController().handle));
+// ========== Rotas FREE (conta + área de pagamento) ==========
+// Usuários - conta
 router.get("/users", authMiddleware, asyncHandler(new ListUsersController().handle));
 router.get("/users/:id", authMiddleware, asyncHandler(new GetUserByIdController().handle));
 router.put("/users/:id", authMiddleware, validateSchema(updateUserSchema), asyncHandler(new UpdateUserController().handle));
-router.delete("/users/:id", authMiddleware, roleMiddleware(['ADMIN']), asyncHandler(new DeleteUserController().handle));
 
-// Rotas protegidas - Sistema de Ponto (ADMIN e STAFF podem usar)
-router.post("/time-records/start", authMiddleware, asyncHandler(new StartTimeRecordController().handle));
-router.post("/time-records/stop", authMiddleware, asyncHandler(new StopTimeRecordController().handle));
-router.get("/time-records", authMiddleware, asyncHandler(new ListTimeRecordsController().handle));
-router.get("/time-records/summary", authMiddleware, asyncHandler(new GetSummaryController().handle));
-
-// Rotas protegidas - Organização
-router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));
+// Organização - conta
 router.get("/organizations", authMiddleware, tenantMiddleware, asyncHandler(new GetOrganizationController().handle));
 router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(updateOrganizationSchema), asyncHandler(new UpdateOrganizationController().handle));
 
-// Rotas protegidas - Categorias (requerem organização)
-router.get("/categories", authMiddleware, tenantMiddleware, asyncHandler(new ListCategoriesController().handle));
-router.post("/categories", authMiddleware, tenantMiddleware, validateSchema(createCategorySchema), asyncHandler(new CreateCategoryController().handle));
-router.put("/categories/:id", authMiddleware, tenantMiddleware, validateSchema(updateCategorySchema), asyncHandler(new UpdateCategoryController().handle));
-router.delete("/categories/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteCategoryController().handle));
+// Assinatura - área de pagamento (FREE acessa para ver plano e fazer upgrade)
+router.get("/subscription", authMiddleware, tenantMiddleware, asyncHandler(new GetSubscriptionController().handle));
 
-// Rotas protegidas - Produtos (requerem organização)
-router.post("/products", authMiddleware, tenantMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));
-router.get("/products", authMiddleware, tenantMiddleware, asyncHandler(new ListProductsController().handle));
-router.get("/products/:id", authMiddleware, tenantMiddleware, asyncHandler(new GetProductByIdController().handle));
-router.put("/products/:id", authMiddleware, tenantMiddleware, validateSchema(updateProductSchema), asyncHandler(new UpdateProductController().handle));
-router.delete("/products/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteProductController().handle));
+// Rotas públicas de criação
+router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));
 
-// Rotas protegidas - Estoque - Entradas
-router.post("/stock/entries", authMiddleware, tenantMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
-router.get("/stock/entries", authMiddleware, tenantMiddleware, asyncHandler(new ListStockEntriesController().handle));
+// ========== Rotas PREMIUM (exigem plano premium) ==========
+// Usuários - criar staff e deletar (PREMIUM)
+router.post("/users/staff", authMiddleware, tenantMiddleware, premiumMiddleware, roleMiddleware(['ADMIN']), validateSchema(createStaffSchema), asyncHandler(new CreateStaffController().handle));
+router.delete("/users/:id", authMiddleware, tenantMiddleware, premiumMiddleware, roleMiddleware(['ADMIN']), asyncHandler(new DeleteUserController().handle));
 
-// Rotas protegidas - Estoque - Saídas
-router.post("/stock/exits", authMiddleware, tenantMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
-router.get("/stock/exits", authMiddleware, tenantMiddleware, asyncHandler(new ListStockExitsController().handle));
+// Sistema de Ponto (PREMIUM)
+router.post("/time-records/start", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new StartTimeRecordController().handle));
+router.post("/time-records/stop", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new StopTimeRecordController().handle));
+router.get("/time-records", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListTimeRecordsController().handle));
+router.get("/time-records/summary", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetSummaryController().handle));
 
-// Rotas protegidas - Relatórios de Estoque
+// Categorias (PREMIUM)
+router.get("/categories", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListCategoriesController().handle));
+router.post("/categories", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createCategorySchema), asyncHandler(new CreateCategoryController().handle));
+router.put("/categories/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateCategorySchema), asyncHandler(new UpdateCategoryController().handle));
+router.delete("/categories/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteCategoryController().handle));
+
+// Produtos (PREMIUM)
+router.post("/products", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));
+router.get("/products", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListProductsController().handle));
+router.get("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetProductByIdController().handle));
+router.put("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateProductSchema), asyncHandler(new UpdateProductController().handle));
+router.delete("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteProductController().handle));
+
+// Estoque (PREMIUM)
+router.post("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
+router.get("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
+router.post("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
+router.get("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
+
+// Relatórios de Estoque (PREMIUM)
 const stockReportController = new StockReportController();
-router.get("/stock/current", authMiddleware, tenantMiddleware, asyncHandler(stockReportController.getCurrentStock.bind(stockReportController)));
-router.get("/stock/low-stock", authMiddleware, tenantMiddleware, asyncHandler(stockReportController.getLowStock.bind(stockReportController)));
-router.get("/stock/daily-usage", authMiddleware, tenantMiddleware, asyncHandler(stockReportController.getDailyUsage.bind(stockReportController)));
-router.get("/stock/weekly-usage", authMiddleware, tenantMiddleware, asyncHandler(stockReportController.getWeeklyUsage.bind(stockReportController)));
-router.get("/stock/total-value", authMiddleware, tenantMiddleware, asyncHandler(stockReportController.getTotalValue.bind(stockReportController)));
+router.get("/stock/current", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getCurrentStock.bind(stockReportController)));
+router.get("/stock/low-stock", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getLowStock.bind(stockReportController)));
+router.get("/stock/daily-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getDailyUsage.bind(stockReportController)));
+router.get("/stock/weekly-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getWeeklyUsage.bind(stockReportController)));
+router.get("/stock/total-value", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getTotalValue.bind(stockReportController)));
 
 export {router};
