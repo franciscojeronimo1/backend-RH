@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request } from 'express';
 
 // Rate limiter geral: por usuário (quando autenticado) ou por IP (rotas públicas).
@@ -10,8 +10,8 @@ export const generalLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        const user = (req as any).user;
-        return user?.id ?? req.ip ?? 'unknown';
+        const user = (req as Request & { user?: { id: string } }).user;
+        return user?.id ?? ipKeyGenerator(req.ip ?? 'unknown');
     },
 });
 
@@ -32,5 +32,18 @@ export const createUserLimiter = rateLimit({
     message: 'Muitas tentativas de criação de conta. Tente novamente em 1 hora.',
     standardHeaders: true,
     legacyHeaders: false,
+});
+
+// Rate limiter para checkout (proteção contra abuso)
+export const checkoutLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 10, // máximo de 10 sessões de checkout por usuário/IP por hora
+    message: 'Muitas tentativas de checkout. Tente novamente em 1 hora.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const user = (req as Request & { user?: { id: string } }).user;
+        return user?.id ?? ipKeyGenerator(req.ip ?? 'unknown');
+    },
 });
 
