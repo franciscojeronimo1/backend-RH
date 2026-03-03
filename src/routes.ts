@@ -29,6 +29,8 @@ import { ListStockExitsController } from './controllers/stock/ListStockExitsCont
 import { StockReportController } from './controllers/stock/StockReportController';
 import { HealthController } from './controllers/health/HealthController';
 import { GetSubscriptionController } from './controllers/subscription/GetSubscriptionController';
+import { TestStripeController } from './controllers/subscription/TestStripeController';
+import { CreateCheckoutController } from './controllers/subscription/CreateCheckoutController';
 import { validateSchema } from './middlewares/validateSchema';
 import { asyncHandler } from './middlewares/asyncHandler';
 import { authMiddleware } from './middlewares/authMiddleware';
@@ -65,6 +67,8 @@ router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(up
 
 // Assinatura - área de pagamento (FREE acessa para ver plano e fazer upgrade)
 router.get("/subscription", authMiddleware, tenantMiddleware, asyncHandler(new GetSubscriptionController().handle));
+router.get("/subscription/test", asyncHandler(new TestStripeController().handle));
+router.post("/subscription/checkout", authMiddleware, tenantMiddleware, asyncHandler(new CreateCheckoutController().handle));
 
 // Rotas públicas de criação
 router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));

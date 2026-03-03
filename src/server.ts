@@ -6,6 +6,7 @@ import { router } from './routes';
 import { errorHandler } from './middlewares/errorHandler';
 import { optionalAuthMiddleware } from './middlewares/authMiddleware';
 import { generalLimiter } from './middlewares/rateLimiter';
+import { StripeWebhookController } from './controllers/subscription/StripeWebhookController';
 
 const app = express();
 
@@ -19,6 +20,12 @@ app.use(cors());
 app.use(optionalAuthMiddleware);
 // Rate limiting: por usuário (quando autenticado) ou por IP; 300 req/15min
 app.use(generalLimiter);
+
+// Webhook Stripe - DEVE vir antes do express.json() para receber body raw (verificação de assinatura)
+const stripeWebhookController = new StripeWebhookController();
+app.use('/subscription/webhook', express.raw({ type: 'application/json' }), (req, res, next) => {
+    stripeWebhookController.handle(req, res).catch(next);
+});
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
