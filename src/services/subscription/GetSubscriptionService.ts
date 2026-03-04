@@ -15,14 +15,17 @@ class GetSubscriptionService {
             };
         }
 
+        const isPremium = subscription.plan === 'PREMIUM' && (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL');
+
         return {
             id: subscription.id,
             plan: subscription.plan,
             status: subscription.status,
-            isPremium: subscription.plan === 'PREMIUM' && (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL'),
+            isPremium,
             startedAt: subscription.startedAt,
             expiresAt: subscription.expiresAt,
             trialEndsAt: subscription.trialEndsAt,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
         };
     }
 }

@@ -46,16 +46,18 @@ class StripeWebhookController {
                 case 'checkout.session.completed': {
                     const session = event.data.object as Stripe.Checkout.Session;
                     if (session.mode === 'subscription' && session.subscription && session.metadata?.organizationId) {
-                        const subscription = await stripe.subscriptions.retrieve(
+                        const sub = await stripe.subscriptions.retrieve(
                             session.subscription as string
                         );
+                        const periodEnd = 'current_period_end' in sub ? (sub as { current_period_end?: number }).current_period_end : undefined;
                         await prismaClient.subscription.update({
                             where: { organizationId: session.metadata.organizationId },
                             data: {
                                 stripeCustomerId: session.customer as string,
-                                stripeSubscriptionId: subscription.id,
+                                stripeSubscriptionId: sub.id,
                                 plan: 'PREMIUM',
                                 status: 'ACTIVE',
+                                expiresAt: periodEnd ? new Date(periodEnd * 1000) : null,
                             },
                         });
                     }
@@ -63,18 +65,17 @@ class StripeWebhookController {
                 }
                 case 'customer.subscription.updated': {
                     const sub = event.data.object as Stripe.Subscription;
-                    const orgId = sub.metadata?.organizationId;
-                    if (orgId) {
-                        const status = sub.status === 'active' ? 'ACTIVE' : sub.status === 'trialing' ? 'TRIAL' : 'CANCELLED';
-                        const periodEnd = 'current_period_end' in sub ? (sub as { current_period_end?: number }).current_period_end : undefined;
-                        await prismaClient.subscription.updateMany({
-                            where: { stripeSubscriptionId: sub.id },
-                            data: {
-                                status: status as 'ACTIVE' | 'TRIAL' | 'CANCELLED' | 'EXPIRED',
-                                expiresAt: periodEnd ? new Date(periodEnd * 1000) : null,
-                            },
-                        });
-                    }
+                    const periodEnd = 'current_period_end' in sub ? (sub as { current_period_end?: number }).current_period_end : undefined;
+                    const cancelAtPeriodEnd = 'cancel_at_period_end' in sub ? (sub as { cancel_at_period_end?: boolean }).cancel_at_period_end : false;
+                    const status = sub.status === 'active' ? 'ACTIVE' : sub.status === 'trialing' ? 'TRIAL' : 'CANCELLED';
+                    await prismaClient.subscription.updateMany({
+                        where: { stripeSubscriptionId: sub.id },
+                        data: {
+                            status: status as 'ACTIVE' | 'TRIAL' | 'CANCELLED' | 'EXPIRED',
+                            expiresAt: periodEnd ? new Date(periodEnd * 1000) : null,
+                            cancelAtPeriodEnd: !!cancelAtPeriodEnd,
+                        },
+                    });
                     break;
                 }
                 case 'customer.subscription.deleted': {
@@ -85,6 +86,7 @@ class StripeWebhookController {
                             plan: 'FREE',
                             status: 'EXPIRED',
                             stripeSubscriptionId: null,
+                            cancelAtPeriodEnd: false,
                         },
                     });
                     break;

@@ -31,6 +31,7 @@ import { HealthController } from './controllers/health/HealthController';
 import { GetSubscriptionController } from './controllers/subscription/GetSubscriptionController';
 import { TestStripeController } from './controllers/subscription/TestStripeController';
 import { CreateCheckoutController } from './controllers/subscription/CreateCheckoutController';
+import { CreatePortalSessionController } from './controllers/subscription/CreatePortalSessionController';
 import { validateSchema } from './middlewares/validateSchema';
 import { asyncHandler } from './middlewares/asyncHandler';
 import { authMiddleware } from './middlewares/authMiddleware';
@@ -69,6 +70,7 @@ router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(up
 router.get("/subscription", authMiddleware, tenantMiddleware, asyncHandler(new GetSubscriptionController().handle));
 router.get("/subscription/test", asyncHandler(new TestStripeController().handle));
 router.post("/subscription/checkout", authMiddleware, tenantMiddleware, asyncHandler(new CreateCheckoutController().handle));
+router.post("/subscription/portal", authMiddleware, tenantMiddleware, asyncHandler(new CreatePortalSessionController().handle));
 
 // Rotas públicas de criação
 router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));

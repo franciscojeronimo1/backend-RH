@@ -62,9 +62,10 @@ model Subscription{
   expiresAt DateTime?
   trialEndsAt DateTime?
 
-  // Para integração futura com Stripe
+  // Stripe
   stripeCustomerId String?
   stripeSubscriptionId String?
+  cancelAtPeriodEnd Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
