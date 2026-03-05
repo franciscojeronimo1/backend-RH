@@ -11,11 +11,16 @@ const routes_1 = require("./routes");
 const errorHandler_1 = require("./middlewares/errorHandler");
 const authMiddleware_1 = require("./middlewares/authMiddleware");
 const rateLimiter_1 = require("./middlewares/rateLimiter");
+const StripeWebhookController_1 = require("./controllers/subscription/StripeWebhookController");
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)());
 app.use(authMiddleware_1.optionalAuthMiddleware);
 app.use(rateLimiter_1.generalLimiter);
+const stripeWebhookController = new StripeWebhookController_1.StripeWebhookController();
+app.use('/subscription/webhook', express_1.default.raw({ type: 'application/json' }), (req, res, next) => {
+    stripeWebhookController.handle(req, res).catch(next);
+});
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(routes_1.router);
 app.use(errorHandler_1.errorHandler);

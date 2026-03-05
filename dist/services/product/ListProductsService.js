@@ -6,7 +6,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 class ListProductsService {
-    async execute(organizationId, category, includeInactive = false, paginationParams) {
+    async execute(organizationId, category, includeInactive = false, paginationParams, search) {
         const where = {
             organizationId,
         };
@@ -15,6 +15,14 @@ class ListProductsService {
         }
         if (!includeInactive) {
             where.active = true;
+        }
+        const searchTerm = search?.trim();
+        if (searchTerm) {
+            where.OR = [
+                { name: { contains: searchTerm, mode: 'insensitive' } },
+                { code: { contains: searchTerm, mode: 'insensitive' } },
+                { sku: { contains: searchTerm, mode: 'insensitive' } },
+            ];
         }
         const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);
         const limit = Math.min(MAX_LIMIT, Math.max(1, paginationParams?.limit ?? DEFAULT_LIMIT));

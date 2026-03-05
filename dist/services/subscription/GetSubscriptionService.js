@@ -15,14 +15,16 @@ class GetSubscriptionService {
                 message: 'Nenhuma assinatura ativa. Faça upgrade para Premium para desbloquear todos os recursos.',
             };
         }
+        const isPremium = subscription.plan === 'PREMIUM' && (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL');
         return {
             id: subscription.id,
             plan: subscription.plan,
             status: subscription.status,
-            isPremium: subscription.plan === 'PREMIUM' && (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL'),
+            isPremium,
             startedAt: subscription.startedAt,
             expiresAt: subscription.expiresAt,
             trialEndsAt: subscription.trialEndsAt,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
         };
     }
 }

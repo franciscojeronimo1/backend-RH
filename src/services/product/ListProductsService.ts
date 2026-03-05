@@ -25,7 +25,8 @@ class ListProductsService {
         organizationId: string,
         category?: string,
         includeInactive: boolean = false,
-        paginationParams?: PaginationParams
+        paginationParams?: PaginationParams,
+        search?: string
     ): Promise<PaginatedResult> {
         const where: any = {
             organizationId,
@@ -37,6 +38,16 @@ class ListProductsService {
 
         if (!includeInactive) {
             where.active = true;
+        }
+
+        // Busca por nome, código ou SKU (case insensitive)
+        const searchTerm = search?.trim();
+        if (searchTerm) {
+            where.OR = [
+                { name: { contains: searchTerm, mode: 'insensitive' } },
+                { code: { contains: searchTerm, mode: 'insensitive' } },
+                { sku: { contains: searchTerm, mode: 'insensitive' } },
+            ];
         }
 
         const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);

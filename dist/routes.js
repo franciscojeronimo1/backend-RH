@@ -32,6 +32,9 @@ const ListStockExitsController_1 = require("./controllers/stock/ListStockExitsCo
 const StockReportController_1 = require("./controllers/stock/StockReportController");
 const HealthController_1 = require("./controllers/health/HealthController");
 const GetSubscriptionController_1 = require("./controllers/subscription/GetSubscriptionController");
+const TestStripeController_1 = require("./controllers/subscription/TestStripeController");
+const CreateCheckoutController_1 = require("./controllers/subscription/CreateCheckoutController");
+const CreatePortalSessionController_1 = require("./controllers/subscription/CreatePortalSessionController");
 const validateSchema_1 = require("./middlewares/validateSchema");
 const asyncHandler_1 = require("./middlewares/asyncHandler");
 const authMiddleware_1 = require("./middlewares/authMiddleware");
@@ -56,6 +59,9 @@ router.put("/users/:id", authMiddleware_1.authMiddleware, (0, validateSchema_1.v
 router.get("/organizations", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, (0, asyncHandler_1.asyncHandler)(new GetOrganizationController_1.GetOrganizationController().handle));
 router.put("/organizations", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, (0, validateSchema_1.validateSchema)(organizationSchema_1.updateOrganizationSchema), (0, asyncHandler_1.asyncHandler)(new UpdateOrganizationController_1.UpdateOrganizationController().handle));
 router.get("/subscription", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, (0, asyncHandler_1.asyncHandler)(new GetSubscriptionController_1.GetSubscriptionController().handle));
+router.get("/subscription/test", (0, asyncHandler_1.asyncHandler)(new TestStripeController_1.TestStripeController().handle));
+router.post("/subscription/checkout", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, (0, asyncHandler_1.asyncHandler)(new CreateCheckoutController_1.CreateCheckoutController().handle));
+router.post("/subscription/portal", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, (0, asyncHandler_1.asyncHandler)(new CreatePortalSessionController_1.CreatePortalSessionController().handle));
 router.post("/organizations", authMiddleware_1.authMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.createOrganizationSchema), (0, asyncHandler_1.asyncHandler)(new CreateOrganizationController_1.CreateOrganizationController().handle));
 router.post("/users/staff", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, roleMiddleware_1.roleMiddleware)(['ADMIN']), (0, validateSchema_1.validateSchema)(userSchema_1.createStaffSchema), (0, asyncHandler_1.asyncHandler)(new CreateStaffController_1.CreateStaffController().handle));
 router.delete("/users/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, roleMiddleware_1.roleMiddleware)(['ADMIN']), (0, asyncHandler_1.asyncHandler)(new DeleteUserController_1.DeleteUserController().handle));
