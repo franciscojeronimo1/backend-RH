@@ -26,6 +26,7 @@ import { CreateStockEntryController } from './controllers/stock/CreateStockEntry
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
 import { ListStockEntriesController } from './controllers/stock/ListStockEntriesController';
 import { ListStockExitsController } from './controllers/stock/ListStockExitsController';
+import { ListStockMovementsController } from './controllers/stock/ListStockMovementsController';
 import { StockReportController } from './controllers/stock/StockReportController';
 import { HealthController } from './controllers/health/HealthController';
 import { GetSubscriptionController } from './controllers/subscription/GetSubscriptionController';
@@ -104,6 +105,7 @@ router.post("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddlewar
 router.get("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
 router.post("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
 router.get("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
+router.get("/stock/movements", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockMovementsController().handle));
 
 // Relatórios de Estoque (PREMIUM)
 const stockReportController = new StockReportController();

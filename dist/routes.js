@@ -29,6 +29,7 @@ const CreateStockEntryController_1 = require("./controllers/stock/CreateStockEnt
 const CreateStockExitController_1 = require("./controllers/stock/CreateStockExitController");
 const ListStockEntriesController_1 = require("./controllers/stock/ListStockEntriesController");
 const ListStockExitsController_1 = require("./controllers/stock/ListStockExitsController");
+const ListStockMovementsController_1 = require("./controllers/stock/ListStockMovementsController");
 const StockReportController_1 = require("./controllers/stock/StockReportController");
 const HealthController_1 = require("./controllers/health/HealthController");
 const GetSubscriptionController_1 = require("./controllers/subscription/GetSubscriptionController");
@@ -82,6 +83,7 @@ router.post("/stock/entries", authMiddleware_1.authMiddleware, tenantMiddleware_
 router.get("/stock/entries", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockEntriesController_1.ListStockEntriesController().handle));
 router.post("/stock/exits", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.createStockExitSchema), (0, asyncHandler_1.asyncHandler)(new CreateStockExitController_1.CreateStockExitController().handle));
 router.get("/stock/exits", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockExitsController_1.ListStockExitsController().handle));
+router.get("/stock/movements", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockMovementsController_1.ListStockMovementsController().handle));
 const stockReportController = new StockReportController_1.StockReportController();
 router.get("/stock/current", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(stockReportController.getCurrentStock.bind(stockReportController)));
 router.get("/stock/low-stock", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(stockReportController.getLowStock.bind(stockReportController)));
