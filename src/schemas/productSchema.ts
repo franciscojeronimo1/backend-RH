@@ -19,6 +19,7 @@ export const updateProductSchema = z.object({
         sku: z.string().optional(),
         category: z.string().optional(),
         minStock: z.number().int().min(0).optional(),
+        currentStock: z.number().int().min(0, { message: "Estoque atual deve ser maior ou igual a 0" }).optional(),
         unit: z.string().min(1).optional(),
         costPrice: z.number().positive().optional(),
         active: z.boolean().optional(),

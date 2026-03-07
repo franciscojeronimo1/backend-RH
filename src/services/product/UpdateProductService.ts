@@ -6,6 +6,7 @@ interface UpdateProductData {
     sku?: string;
     category?: string;
     minStock?: number;
+    currentStock?: number;
     unit?: string;
     costPrice?: number;
     active?: boolean;
@@ -32,6 +33,7 @@ class UpdateProductService {
         if (data.sku !== undefined) updateData.sku = data.sku;
         if (data.category !== undefined) updateData.category = data.category;
         if (data.minStock !== undefined) updateData.minStock = data.minStock;
+        if (data.currentStock !== undefined) updateData.currentStock = data.currentStock;
         if (data.unit !== undefined) updateData.unit = data.unit;
         if (data.costPrice !== undefined) updateData.costPrice = data.costPrice;
         if (data.active !== undefined) updateData.active = data.active;
