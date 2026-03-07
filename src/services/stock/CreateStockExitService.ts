@@ -53,9 +53,11 @@ class CreateStockExitService {
             notes,
         };
 
-        if (unitPrice !== undefined && unitPrice !== null) {
-            const totalPrice = quantity * unitPrice;
-            exitData.unitPrice = new Decimal(unitPrice);
+        // Usa unitPrice enviado ou preço de venda do produto (se houver)
+        const priceToUse = unitPrice ?? (product.salePrice ? Number(product.salePrice) : undefined);
+        if (priceToUse !== undefined && priceToUse !== null) {
+            const totalPrice = quantity * priceToUse;
+            exitData.unitPrice = new Decimal(priceToUse);
             exitData.totalPrice = new Decimal(totalPrice);
         }
 
@@ -67,6 +69,7 @@ class CreateStockExitService {
                         id: true,
                         name: true,
                         currentStock: true,
+                        salePrice: true,
                     },
                 },
                 user: {

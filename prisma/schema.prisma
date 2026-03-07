@@ -148,6 +148,7 @@ model Product{
   // Preços
   costPrice Decimal? @db.Decimal(10, 2)
   averageCost Decimal? @db.Decimal(10, 2)
+  salePrice Decimal? @db.Decimal(10, 2)
 
   // Status
   active Boolean @default(true)

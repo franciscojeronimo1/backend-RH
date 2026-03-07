@@ -10,6 +10,7 @@ class CreateProductService {
         minStock: number = 0,
         unit: string = 'UN',
         costPrice?: number,
+        salePrice?: number,
         active: boolean = true
     ) {
         const product = await prismaClient.product.create({
@@ -23,6 +24,7 @@ class CreateProductService {
                 unit,
                 costPrice: costPrice ? costPrice : null,
                 averageCost: costPrice ? costPrice : null,
+                salePrice: salePrice ? salePrice : null,
                 currentStock: 0,
                 active,
             },

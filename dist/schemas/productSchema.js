@@ -11,6 +11,8 @@ exports.createProductSchema = zod_1.z.object({
         minStock: zod_1.z.number().int().min(0, { message: "Estoque mínimo deve ser maior ou igual a 0" }).default(0),
         unit: zod_1.z.string().min(1, { message: "A unidade é obrigatória" }).default("UN"),
         costPrice: zod_1.z.number().positive({ message: "Preço de custo deve ser positivo" }).optional(),
+        salePrice: zod_1.z.number().positive({ message: "Preço de venda deve ser positivo" }).optional(),
+        active: zod_1.z.boolean().optional().default(true),
     }),
 });
 exports.updateProductSchema = zod_1.z.object({
@@ -20,8 +22,10 @@ exports.updateProductSchema = zod_1.z.object({
         sku: zod_1.z.string().optional(),
         category: zod_1.z.string().optional(),
         minStock: zod_1.z.number().int().min(0).optional(),
+        currentStock: zod_1.z.number().int().min(0, { message: "Estoque atual deve ser maior ou igual a 0" }).optional(),
         unit: zod_1.z.string().min(1).optional(),
         costPrice: zod_1.z.number().positive().optional(),
+        salePrice: zod_1.z.number().positive().optional(),
         active: zod_1.z.boolean().optional(),
     }),
 });

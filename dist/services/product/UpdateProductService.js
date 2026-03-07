@@ -24,10 +24,14 @@ class UpdateProductService {
             updateData.category = data.category;
         if (data.minStock !== undefined)
             updateData.minStock = data.minStock;
+        if (data.currentStock !== undefined)
+            updateData.currentStock = data.currentStock;
         if (data.unit !== undefined)
             updateData.unit = data.unit;
         if (data.costPrice !== undefined)
             updateData.costPrice = data.costPrice;
+        if (data.salePrice !== undefined)
+            updateData.salePrice = data.salePrice;
         if (data.active !== undefined)
             updateData.active = data.active;
         const product = await prismaClient_1.prismaClient.product.update({

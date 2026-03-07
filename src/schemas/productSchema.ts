@@ -9,6 +9,7 @@ export const createProductSchema = z.object({
         minStock: z.number().int().min(0, { message: "Estoque mínimo deve ser maior ou igual a 0" }).default(0),
         unit: z.string().min(1, { message: "A unidade é obrigatória" }).default("UN"),
         costPrice: z.number().positive({ message: "Preço de custo deve ser positivo" }).optional(),
+        salePrice: z.number().positive({ message: "Preço de venda deve ser positivo" }).optional(),
         active: z.boolean().optional().default(true),
     }),
 });
@@ -23,6 +24,7 @@ export const updateProductSchema = z.object({
         currentStock: z.number().int().min(0, { message: "Estoque atual deve ser maior ou igual a 0" }).optional(),
         unit: z.string().min(1).optional(),
         costPrice: z.number().positive().optional(),
+        salePrice: z.number().positive().optional(),
         active: z.boolean().optional(),
     }),
 });
