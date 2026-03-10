@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createOrganizationSchema = exports.createStockExitSchema = exports.createStockEntrySchema = void 0;
+exports.createOrganizationSchema = exports.updateStockExitSchema = exports.updateStockEntrySchema = exports.createStockExitSchema = exports.createStockEntrySchema = void 0;
 const zod_1 = require("zod");
 exports.createStockEntrySchema = zod_1.z.object({
     body: zod_1.z.object({
@@ -22,6 +22,34 @@ exports.createStockExitSchema = zod_1.z.object({
         clientName: zod_1.z.string().optional(),
         serviceType: zod_1.z.string().optional(),
         notes: zod_1.z.string().optional(),
+    }),
+});
+exports.updateStockEntrySchema = zod_1.z.object({
+    params: zod_1.z.object({
+        id: zod_1.z.string().uuid({ message: "ID da movimentação inválido" }),
+    }),
+    body: zod_1.z.object({
+        productId: zod_1.z.string().uuid({ message: "ID do produto inválido" }).optional(),
+        quantity: zod_1.z.number().int().positive({ message: "Quantidade deve ser um número inteiro positivo" }).optional(),
+        unitPrice: zod_1.z.number().positive({ message: "Preço unitário deve ser positivo" }).optional(),
+        supplierName: zod_1.z.string().optional().nullable(),
+        supplierDoc: zod_1.z.string().optional().nullable(),
+        invoiceNumber: zod_1.z.string().optional().nullable(),
+        notes: zod_1.z.string().optional().nullable(),
+    }),
+});
+exports.updateStockExitSchema = zod_1.z.object({
+    params: zod_1.z.object({
+        id: zod_1.z.string().uuid({ message: "ID da movimentação inválido" }),
+    }),
+    body: zod_1.z.object({
+        productId: zod_1.z.string().uuid({ message: "ID do produto inválido" }).optional(),
+        quantity: zod_1.z.number().int().positive({ message: "Quantidade deve ser um número inteiro positivo" }).optional(),
+        unitPrice: zod_1.z.number().positive({ message: "Preço unitário de venda deve ser positivo" }).optional().nullable(),
+        projectName: zod_1.z.string().optional().nullable(),
+        clientName: zod_1.z.string().optional().nullable(),
+        serviceType: zod_1.z.string().optional().nullable(),
+        notes: zod_1.z.string().optional().nullable(),
     }),
 });
 exports.createOrganizationSchema = zod_1.z.object({

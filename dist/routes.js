@@ -27,6 +27,8 @@ const UpdateCategoryController_1 = require("./controllers/category/UpdateCategor
 const DeleteCategoryController_1 = require("./controllers/category/DeleteCategoryController");
 const CreateStockEntryController_1 = require("./controllers/stock/CreateStockEntryController");
 const CreateStockExitController_1 = require("./controllers/stock/CreateStockExitController");
+const UpdateStockEntryController_1 = require("./controllers/stock/UpdateStockEntryController");
+const UpdateStockExitController_1 = require("./controllers/stock/UpdateStockExitController");
 const ListStockEntriesController_1 = require("./controllers/stock/ListStockEntriesController");
 const ListStockExitsController_1 = require("./controllers/stock/ListStockExitsController");
 const ListStockMovementsController_1 = require("./controllers/stock/ListStockMovementsController");
@@ -80,8 +82,10 @@ router.get("/products/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.
 router.put("/products/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(productSchema_1.updateProductSchema), (0, asyncHandler_1.asyncHandler)(new UpdateProductController_1.UpdateProductController().handle));
 router.delete("/products/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new DeleteProductController_1.DeleteProductController().handle));
 router.post("/stock/entries", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.createStockEntrySchema), (0, asyncHandler_1.asyncHandler)(new CreateStockEntryController_1.CreateStockEntryController().handle));
+router.put("/stock/entries/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.updateStockEntrySchema), (0, asyncHandler_1.asyncHandler)(new UpdateStockEntryController_1.UpdateStockEntryController().handle));
 router.get("/stock/entries", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockEntriesController_1.ListStockEntriesController().handle));
 router.post("/stock/exits", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.createStockExitSchema), (0, asyncHandler_1.asyncHandler)(new CreateStockExitController_1.CreateStockExitController().handle));
+router.put("/stock/exits/:id", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, validateSchema_1.validateSchema)(stockSchema_1.updateStockExitSchema), (0, asyncHandler_1.asyncHandler)(new UpdateStockExitController_1.UpdateStockExitController().handle));
 router.get("/stock/exits", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockExitsController_1.ListStockExitsController().handle));
 router.get("/stock/movements", authMiddleware_1.authMiddleware, tenantMiddleware_1.tenantMiddleware, premiumMiddleware_1.premiumMiddleware, (0, asyncHandler_1.asyncHandler)(new ListStockMovementsController_1.ListStockMovementsController().handle));
 const stockReportController = new StockReportController_1.StockReportController();
