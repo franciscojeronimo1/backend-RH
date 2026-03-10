@@ -26,6 +26,8 @@ import { CreateStockEntryController } from './controllers/stock/CreateStockEntry
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
 import { UpdateStockEntryController } from './controllers/stock/UpdateStockEntryController';
 import { UpdateStockExitController } from './controllers/stock/UpdateStockExitController';
+import { GetStockEntryByIdController } from './controllers/stock/GetStockEntryByIdController';
+import { GetStockExitByIdController } from './controllers/stock/GetStockExitByIdController';
 import { ListStockEntriesController } from './controllers/stock/ListStockEntriesController';
 import { ListStockExitsController } from './controllers/stock/ListStockExitsController';
 import { ListStockMovementsController } from './controllers/stock/ListStockMovementsController';
@@ -106,9 +108,11 @@ router.delete("/products/:id", authMiddleware, tenantMiddleware, premiumMiddlewa
 router.post("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
 router.put("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockEntrySchema), asyncHandler(new UpdateStockEntryController().handle));
 router.get("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
+router.get("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetStockEntryByIdController().handle));
 router.post("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
 router.put("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockExitSchema), asyncHandler(new UpdateStockExitController().handle));
 router.get("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
+router.get("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetStockExitByIdController().handle));
 router.get("/stock/movements", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockMovementsController().handle));
 
 // Relatórios de Estoque (PREMIUM)
