@@ -14,6 +14,7 @@ import { CreateOrganizationController } from './controllers/organization/CreateO
 import { GetOrganizationController } from './controllers/organization/GetOrganizationController';
 import { UpdateOrganizationController } from './controllers/organization/UpdateOrganizationController';
 import { CreateProductController } from './controllers/product/CreateProductController';
+import { ImportProductsController } from './controllers/product/ImportProductsController';
 import { ListProductsController } from './controllers/product/ListProductsController';
 import { GetProductByIdController } from './controllers/product/GetProductByIdController';
 import { UpdateProductController } from './controllers/product/UpdateProductController';
@@ -47,6 +48,7 @@ import { loginLimiter, createUserLimiter } from './middlewares/rateLimiter';
 import { createUserSchema, createStaffSchema, updateUserSchema } from './schemas/userSchema';
 import { loginSchema } from './schemas/authSchema';
 import { createProductSchema, updateProductSchema } from './schemas/productSchema';
+import { importProductsSchema } from './schemas/importProductsSchema';
 import { createCategorySchema, updateCategorySchema } from './schemas/categorySchema';
 import { createStockEntrySchema, createStockExitSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
@@ -99,6 +101,7 @@ router.delete("/categories/:id", authMiddleware, tenantMiddleware, premiumMiddle
 
 // Produtos (PREMIUM)
 router.post("/products", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));
+router.post("/products/import", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(importProductsSchema), asyncHandler(new ImportProductsController().handle));
 router.get("/products", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListProductsController().handle));
 router.get("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetProductByIdController().handle));
 router.put("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateProductSchema), asyncHandler(new UpdateProductController().handle));
