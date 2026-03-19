@@ -26,7 +26,8 @@ class ListProductsService {
         category?: string,
         includeInactive: boolean = false,
         paginationParams?: PaginationParams,
-        search?: string
+        search?: string,
+        supplier?: string
     ): Promise<PaginatedResult> {
         const where: any = {
             organizationId,
@@ -40,14 +41,30 @@ class ListProductsService {
             where.active = true;
         }
 
-        // Busca por nome, código ou SKU (case insensitive)
+        const andConditions: any[] = [];
+
+        if (supplier?.trim()) {
+            andConditions.push({
+                OR: [
+                    { supplierName: { contains: supplier.trim(), mode: 'insensitive' } },
+                    { supplierDoc: { contains: supplier.trim(), mode: 'insensitive' } },
+                ],
+            });
+        }
+
         const searchTerm = search?.trim();
         if (searchTerm) {
-            where.OR = [
-                { name: { contains: searchTerm, mode: 'insensitive' } },
-                { code: { contains: searchTerm, mode: 'insensitive' } },
-                { sku: { contains: searchTerm, mode: 'insensitive' } },
-            ];
+            andConditions.push({
+                OR: [
+                    { name: { contains: searchTerm, mode: 'insensitive' } },
+                    { code: { contains: searchTerm, mode: 'insensitive' } },
+                    { sku: { contains: searchTerm, mode: 'insensitive' } },
+                ],
+            });
+        }
+
+        if (andConditions.length > 0) {
+            where.AND = andConditions;
         }
 
         const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);
