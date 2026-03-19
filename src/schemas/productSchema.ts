@@ -11,6 +11,8 @@ export const createProductSchema = z.object({
         costPrice: z.number().positive({ message: "Preço de custo deve ser positivo" }).optional(),
         salePrice: z.number().positive({ message: "Preço de venda deve ser positivo" }).optional(),
         active: z.boolean().optional().default(true),
+        supplierName: z.string().optional(),
+        supplierDoc: z.string().optional(),
     }),
 });
 
@@ -26,6 +28,8 @@ export const updateProductSchema = z.object({
         costPrice: z.number().positive().optional(),
         salePrice: z.number().positive().optional(),
         active: z.boolean().optional(),
+        supplierName: z.string().optional().nullable(),
+        supplierDoc: z.string().optional().nullable(),
     }),
 });
 

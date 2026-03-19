@@ -11,6 +11,8 @@ interface UpdateProductData {
     costPrice?: number;
     salePrice?: number;
     active?: boolean;
+    supplierName?: string | null;
+    supplierDoc?: string | null;
 }
 
 class UpdateProductService {
@@ -39,6 +41,8 @@ class UpdateProductService {
         if (data.costPrice !== undefined) updateData.costPrice = data.costPrice;
         if (data.salePrice !== undefined) updateData.salePrice = data.salePrice;
         if (data.active !== undefined) updateData.active = data.active;
+        if (data.supplierName !== undefined) updateData.supplierName = data.supplierName?.trim() || null;
+        if (data.supplierDoc !== undefined) updateData.supplierDoc = data.supplierDoc?.trim() || null;
 
         const product = await prismaClient.product.update({
             where: { id },

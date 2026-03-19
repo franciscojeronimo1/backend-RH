@@ -11,7 +11,9 @@ class CreateProductService {
         unit: string = 'UN',
         costPrice?: number,
         salePrice?: number,
-        active: boolean = true
+        active: boolean = true,
+        supplierName?: string,
+        supplierDoc?: string
     ) {
         const product = await prismaClient.product.create({
             data: {
@@ -27,6 +29,8 @@ class CreateProductService {
                 salePrice: salePrice ? salePrice : null,
                 currentStock: 0,
                 active,
+                supplierName: supplierName?.trim() || null,
+                supplierDoc: supplierDoc?.trim() || null,
             },
             include: {
                 organization: {

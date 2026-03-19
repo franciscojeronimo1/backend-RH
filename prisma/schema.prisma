@@ -153,6 +153,10 @@ model Product{
   // Status
   active Boolean @default(true)
 
+  // Fornecedor (opcional)
+  supplierName String?
+  supplierDoc String?
+
   // Relações
   stockEntries StockEntry[]
   stockExits StockExit[]

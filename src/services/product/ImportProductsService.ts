@@ -247,6 +247,8 @@ class ImportProductsService {
                             salePrice: data.salePrice != null ? new Decimal(data.salePrice) : null,
                             currentStock: data.quantity,
                             active: true,
+                            supplierName: data.supplierName ?? null,
+                            supplierDoc: data.supplierDoc ?? null,
                         },
                     });
 
