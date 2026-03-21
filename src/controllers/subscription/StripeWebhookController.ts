@@ -189,6 +189,24 @@ class StripeWebhookController {
                     }
                     break;
                 }
+                case 'customer.subscription.created': {
+                    const sub = event.data.object as Stripe.Subscription;
+                    const orgId = sub.metadata?.organizationId;
+                    if (!orgId) {
+                        console.warn(
+                            '[Webhook] customer.subscription.created sem metadata.organizationId — ignorado.'
+                        );
+                        break;
+                    }
+                    const custId =
+                        typeof sub.customer === 'string'
+                            ? sub.customer
+                            : sub.customer && typeof sub.customer === 'object' && 'id' in sub.customer
+                              ? sub.customer.id
+                              : null;
+                    await syncPremiumFromStripeSubscription(orgId, custId, sub.id);
+                    break;
+                }
                 case 'customer.subscription.deleted': {
                     const sub = event.data.object as Stripe.Subscription;
                     await prismaClient.subscription.updateMany({
