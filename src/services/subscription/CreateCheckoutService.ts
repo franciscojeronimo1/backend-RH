@@ -20,8 +20,11 @@ class CreateCheckoutService {
             throw new Error('Assinatura não encontrada para esta organização');
         }
 
-        if (subscription.plan === 'PREMIUM' && subscription.status === 'ACTIVE') {
-            throw new Error('Organização já possui plano Premium ativo');
+        if (
+            subscription.plan === 'PREMIUM' &&
+            (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL')
+        ) {
+            throw new Error('Organização já possui plano Premium ativo ou em período de trial');
         }
 
         const customer = await createStripeCustomer({
@@ -44,6 +47,7 @@ class CreateCheckoutService {
                 organizationId,
             },
             subscription_data: {
+                trial_period_days: 30,
                 metadata: {
                     organizationId,
                 },
