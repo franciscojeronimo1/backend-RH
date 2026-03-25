@@ -13,6 +13,8 @@ exports.createProductSchema = zod_1.z.object({
         costPrice: zod_1.z.number().positive({ message: "Preço de custo deve ser positivo" }).optional(),
         salePrice: zod_1.z.number().positive({ message: "Preço de venda deve ser positivo" }).optional(),
         active: zod_1.z.boolean().optional().default(true),
+        supplierName: zod_1.z.string().optional(),
+        supplierDoc: zod_1.z.string().optional(),
     }),
 });
 exports.updateProductSchema = zod_1.z.object({
@@ -27,6 +29,8 @@ exports.updateProductSchema = zod_1.z.object({
         costPrice: zod_1.z.number().positive().optional(),
         salePrice: zod_1.z.number().positive().optional(),
         active: zod_1.z.boolean().optional(),
+        supplierName: zod_1.z.string().optional().nullable(),
+        supplierDoc: zod_1.z.string().optional().nullable(),
     }),
 });
 //# sourceMappingURL=productSchema.js.map

@@ -6,7 +6,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 class ListProductsService {
-    async execute(organizationId, category, includeInactive = false, paginationParams, search) {
+    async execute(organizationId, category, includeInactive = false, paginationParams, search, supplier) {
         const where = {
             organizationId,
         };
@@ -16,13 +16,27 @@ class ListProductsService {
         if (!includeInactive) {
             where.active = true;
         }
+        const andConditions = [];
+        if (supplier?.trim()) {
+            andConditions.push({
+                OR: [
+                    { supplierName: { contains: supplier.trim(), mode: 'insensitive' } },
+                    { supplierDoc: { contains: supplier.trim(), mode: 'insensitive' } },
+                ],
+            });
+        }
         const searchTerm = search?.trim();
         if (searchTerm) {
-            where.OR = [
-                { name: { contains: searchTerm, mode: 'insensitive' } },
-                { code: { contains: searchTerm, mode: 'insensitive' } },
-                { sku: { contains: searchTerm, mode: 'insensitive' } },
-            ];
+            andConditions.push({
+                OR: [
+                    { name: { contains: searchTerm, mode: 'insensitive' } },
+                    { code: { contains: searchTerm, mode: 'insensitive' } },
+                    { sku: { contains: searchTerm, mode: 'insensitive' } },
+                ],
+            });
+        }
+        if (andConditions.length > 0) {
+            where.AND = andConditions;
         }
         const page = Math.max(1, paginationParams?.page ?? DEFAULT_PAGE);
         const limit = Math.min(MAX_LIMIT, Math.max(1, paginationParams?.limit ?? DEFAULT_LIMIT));

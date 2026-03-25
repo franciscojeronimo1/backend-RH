@@ -7,9 +7,9 @@ class CreateProductController {
         if (!req.user || !req.user.organizationId) {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
-        const { name, code, sku, category, minStock, unit, costPrice, salePrice, active } = req.body;
+        const { name, code, sku, category, minStock, unit, costPrice, salePrice, active, supplierName, supplierDoc } = req.body;
         const createProductService = new CreateProductService_1.CreateProductService();
-        const product = await createProductService.execute(req.user.organizationId, name, code, sku, category, minStock, unit, costPrice, salePrice, active);
+        const product = await createProductService.execute(req.user.organizationId, name, code, sku, category, minStock, unit, costPrice, salePrice, active, supplierName, supplierDoc);
         return res.status(201).json({
             message: 'Produto criado com sucesso',
             product,

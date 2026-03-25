@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateProductService = void 0;
 const prismaClient_1 = require("../../config/prismaClient");
 class CreateProductService {
-    async execute(organizationId, name, code, sku, category, minStock = 0, unit = 'UN', costPrice, salePrice, active = true) {
+    async execute(organizationId, name, code, sku, category, minStock = 0, unit = 'UN', costPrice, salePrice, active = true, supplierName, supplierDoc) {
         const product = await prismaClient_1.prismaClient.product.create({
             data: {
                 organizationId,
@@ -18,6 +18,8 @@ class CreateProductService {
                 salePrice: salePrice ? salePrice : null,
                 currentStock: 0,
                 active,
+                supplierName: supplierName?.trim() || null,
+                supplierDoc: supplierDoc?.trim() || null,
             },
             include: {
                 organization: {

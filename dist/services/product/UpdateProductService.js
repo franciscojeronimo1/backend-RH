@@ -34,6 +34,10 @@ class UpdateProductService {
             updateData.salePrice = data.salePrice;
         if (data.active !== undefined)
             updateData.active = data.active;
+        if (data.supplierName !== undefined)
+            updateData.supplierName = data.supplierName?.trim() || null;
+        if (data.supplierDoc !== undefined)
+            updateData.supplierDoc = data.supplierDoc?.trim() || null;
         const product = await prismaClient_1.prismaClient.product.update({
             where: { id },
             data: updateData,

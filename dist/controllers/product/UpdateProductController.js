@@ -8,9 +8,9 @@ class UpdateProductController {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
         const { id } = req.params;
-        const { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active } = req.body;
+        const { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc } = req.body;
         const updateProductService = new UpdateProductService_1.UpdateProductService();
-        const product = await updateProductService.execute(id, req.user.organizationId, { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active });
+        const product = await updateProductService.execute(id, req.user.organizationId, { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc });
         return res.json({
             message: 'Produto atualizado com sucesso',
             product,
