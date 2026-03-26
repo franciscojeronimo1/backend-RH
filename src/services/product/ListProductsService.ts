@@ -27,7 +27,8 @@ class ListProductsService {
         includeInactive: boolean = false,
         paginationParams?: PaginationParams,
         search?: string,
-        supplier?: string
+        supplier?: string,
+        lowStockOnly: boolean = false
     ): Promise<PaginatedResult> {
         const where: any = {
             organizationId,
@@ -39,6 +40,12 @@ class ListProductsService {
 
         if (!includeInactive) {
             where.active = true;
+        }
+
+        if (lowStockOnly) {
+            where.currentStock = {
+                lte: prismaClient.product.fields.minStock,
+            };
         }
 
         const andConditions: any[] = [];
@@ -77,9 +84,9 @@ class ListProductsService {
         const [products, total] = await Promise.all([
             prismaClient.product.findMany({
                 where,
-                orderBy: {
-                    name: 'asc',
-                },
+                orderBy: lowStockOnly
+                    ? { currentStock: 'asc' }
+                    : { name: 'asc' },
                 skip,
                 take: limit,
             }),

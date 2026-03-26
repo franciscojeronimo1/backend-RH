@@ -6,7 +6,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 class ListProductsService {
-    async execute(organizationId, category, includeInactive = false, paginationParams, search, supplier) {
+    async execute(organizationId, category, includeInactive = false, paginationParams, search, supplier, lowStockOnly = false) {
         const where = {
             organizationId,
         };
@@ -15,6 +15,11 @@ class ListProductsService {
         }
         if (!includeInactive) {
             where.active = true;
+        }
+        if (lowStockOnly) {
+            where.currentStock = {
+                lte: prismaClient_1.prismaClient.product.fields.minStock,
+            };
         }
         const andConditions = [];
         if (supplier?.trim()) {
@@ -44,9 +49,9 @@ class ListProductsService {
         const [products, total] = await Promise.all([
             prismaClient_1.prismaClient.product.findMany({
                 where,
-                orderBy: {
-                    name: 'asc',
-                },
+                orderBy: lowStockOnly
+                    ? { currentStock: 'asc' }
+                    : { name: 'asc' },
                 skip,
                 take: limit,
             }),
