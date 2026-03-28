@@ -112,6 +112,9 @@ class ListTimeRecordsService {
             summary.date = periodStartDate; // para compatibilidade
         }
 
+        const includeByDay = periodDays !== undefined || !!month;
+        const byDay = includeByDay ? calculateService.summarizeByLocalDay(records) : undefined;
+
         type TimeRecordWithUser = (typeof records)[number];
         return {
             records: records.map((record: TimeRecordWithUser) => ({
@@ -121,6 +124,7 @@ class ListTimeRecordsService {
                 user: record.user,
             })),
             summary,
+            ...(byDay !== undefined ? { byDay } : {}),
         };
     }
 }

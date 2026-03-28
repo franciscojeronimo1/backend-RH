@@ -14,7 +14,10 @@ class GetSummaryController {
             periodDays: periodDays !== undefined ? Number(periodDays) : undefined,
             month: month as string | undefined,
         });
-        
+
+        if ('byDay' in result && result.byDay !== undefined) {
+            return res.json({ summary: result.summary, byDay: result.byDay });
+        }
         return res.json({ summary: result.summary });
     }
 }
