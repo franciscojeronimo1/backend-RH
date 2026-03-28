@@ -25,6 +25,15 @@ export const errorHandler = (
                 message: err.message,
             });
         }
+        // Violação de chave estrangeira (ex.: registro ainda referenciado)
+        if (code === 'P2003') {
+            return res.status(409).json({
+                error: 'Não foi possível excluir',
+                message:
+                    'Este registro ainda está vinculado a outros dados. Remova os vínculos ou tente novamente.',
+                code: 'FOREIGN_KEY_CONSTRAINT',
+            });
+        }
         // Falha de conexão / servidor inacessível / timeout (ex.: Neon acordando do scale-to-zero)
         if (code === 'P1001' || code === 'P1017' || code === 'P2024') {
             return res.status(503).json({
