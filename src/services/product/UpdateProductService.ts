@@ -13,6 +13,7 @@ interface UpdateProductData {
     active?: boolean;
     supplierName?: string | null;
     supplierDoc?: string | null;
+    expirationDate?: Date | null;
 }
 
 class UpdateProductService {
@@ -43,6 +44,7 @@ class UpdateProductService {
         if (data.active !== undefined) updateData.active = data.active;
         if (data.supplierName !== undefined) updateData.supplierName = data.supplierName?.trim() || null;
         if (data.supplierDoc !== undefined) updateData.supplierDoc = data.supplierDoc?.trim() || null;
+        if (data.expirationDate !== undefined) updateData.expirationDate = data.expirationDate;
 
         const product = await prismaClient.product.update({
             where: { id },

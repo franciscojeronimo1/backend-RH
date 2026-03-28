@@ -13,7 +13,8 @@ class CreateProductService {
         salePrice?: number,
         active: boolean = true,
         supplierName?: string,
-        supplierDoc?: string
+        supplierDoc?: string,
+        expirationDate?: Date
     ) {
         const product = await prismaClient.product.create({
             data: {
@@ -31,6 +32,7 @@ class CreateProductService {
                 active,
                 supplierName: supplierName?.trim() || null,
                 supplierDoc: supplierDoc?.trim() || null,
+                expirationDate: expirationDate ?? null,
             },
             include: {
                 organization: {

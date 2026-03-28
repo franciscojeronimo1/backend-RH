@@ -13,6 +13,10 @@ export const createProductSchema = z.object({
         active: z.boolean().optional().default(true),
         supplierName: z.string().optional(),
         supplierDoc: z.string().optional(),
+        expirationDate: z.preprocess(
+            (v) => (v == null || v === '' ? undefined : v),
+            z.coerce.date().optional()
+        ),
     }),
 });
 
@@ -30,6 +34,14 @@ export const updateProductSchema = z.object({
         active: z.boolean().optional(),
         supplierName: z.string().optional().nullable(),
         supplierDoc: z.string().optional().nullable(),
+        expirationDate: z.preprocess(
+            (v) => {
+                if (v === undefined) return undefined;
+                if (v === null || v === '') return null;
+                return v;
+            },
+            z.union([z.coerce.date(), z.null()]).optional()
+        ),
     }),
 });
 

@@ -7,7 +7,7 @@ class CreateProductController {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
         }
 
-        const { name, code, sku, category, minStock, unit, costPrice, salePrice, active, supplierName, supplierDoc } = req.body;
+        const { name, code, sku, category, minStock, unit, costPrice, salePrice, active, supplierName, supplierDoc, expirationDate } = req.body;
         const createProductService = new CreateProductService();
         const product = await createProductService.execute(
             req.user.organizationId,
@@ -21,7 +21,8 @@ class CreateProductController {
             salePrice,
             active,
             supplierName,
-            supplierDoc
+            supplierDoc,
+            expirationDate
         );
 
         return res.status(201).json({

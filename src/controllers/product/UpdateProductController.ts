@@ -8,12 +8,12 @@ class UpdateProductController {
         }
 
         const { id } = req.params;
-        const { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc } = req.body;
+        const { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc, expirationDate } = req.body;
         const updateProductService = new UpdateProductService();
         const product = await updateProductService.execute(
             id as string,
             req.user.organizationId,
-            { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc }
+            { name, code, sku, category, minStock, currentStock, unit, costPrice, salePrice, active, supplierName, supplierDoc, expirationDate }
         );
 
         return res.json({

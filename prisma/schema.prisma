@@ -157,6 +157,8 @@ model Product{
   supplierName String?
   supplierDoc String?
 
+  expirationDate DateTime?
+
   // Relações
   stockEntries StockEntry[]
   stockExits StockExit[]
