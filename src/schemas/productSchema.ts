@@ -17,6 +17,8 @@ export const createProductSchema = z.object({
             (v) => (v == null || v === '' ? undefined : v),
             z.coerce.date().optional()
         ),
+        initialStock: z.coerce.number().int().min(0, { message: 'Estoque inicial deve ser maior ou igual a 0' }).optional().default(0),
+        initialStockUnitPrice: z.coerce.number().min(0, { message: 'Preço unitário da entrada inicial deve ser maior ou igual a 0' }).optional(),
     }),
 });
 
