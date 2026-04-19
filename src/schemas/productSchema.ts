@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zodExpirationDateField } from '../utils/zodExpirationDate';
 
 export const createProductSchema = z.object({
     body: z.object({
@@ -13,10 +14,7 @@ export const createProductSchema = z.object({
         active: z.boolean().optional().default(true),
         supplierName: z.string().optional(),
         supplierDoc: z.string().optional(),
-        expirationDate: z.preprocess(
-            (v) => (v == null || v === '' ? undefined : v),
-            z.coerce.date().optional()
-        ),
+        expirationDate: zodExpirationDateField('create'),
         initialStock: z.coerce.number().int().min(0, { message: 'Estoque inicial deve ser maior ou igual a 0' }).optional().default(0),
         initialStockUnitPrice: z.coerce.number().min(0, { message: 'Preço unitário da entrada inicial deve ser maior ou igual a 0' }).optional(),
     }),
@@ -36,14 +34,7 @@ export const updateProductSchema = z.object({
         active: z.boolean().optional(),
         supplierName: z.string().optional().nullable(),
         supplierDoc: z.string().optional().nullable(),
-        expirationDate: z.preprocess(
-            (v) => {
-                if (v === undefined) return undefined;
-                if (v === null || v === '') return null;
-                return v;
-            },
-            z.union([z.coerce.date(), z.null()]).optional()
-        ),
+        expirationDate: zodExpirationDateField('update'),
     }),
 });
 
