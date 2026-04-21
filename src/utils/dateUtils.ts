@@ -2,59 +2,65 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 
-// Configurar plugins do dayjs
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 /**
- * Utilitários para tratamento de datas no sistema
- * Garante que as datas sejam tratadas como data local (sem timezone)
+ * Fuso fixo para calendário (início/fim de dia, mês, formatação BR).
+ * Independe do TZ do servidor — evita divergência entre dev e produção.
  */
+export const APP_TIMEZONE = 'America/Sao_Paulo';
 
 /**
- * Converte uma string de data (YYYY-MM-DD) para Date local
- * Exemplo: "2025-12-30" -> Date local (não UTC)
+ * Converte uma string de data (YYYY-MM-DD) para o instante de meia-noite
+ * no fuso de São Paulo.
  */
 export function parseLocalDate(dateString: string): Date {
-    // dayjs interpreta "YYYY-MM-DD" como meia-noite local, não UTC
-    return dayjs(dateString).startOf('day').toDate();
+    return dayjs.tz(dateString, APP_TIMEZONE).startOf('day').toDate();
 }
 
 /**
- * Obtém a data atual no timezone local
+ * Momento atual (instante absoluto). Use com getStartOfDay/getEndOfDay
+ * para obter limites do dia no fuso {@link APP_TIMEZONE}.
  */
 export function getCurrentLocalDate(): Date {
     return dayjs().toDate();
 }
 
 /**
- * Obtém o início do dia (00:00:00) no timezone local
+ * Início do dia (00:00:00) em {@link APP_TIMEZONE} para a data informada.
  */
 export function getStartOfDay(date: Date | string): Date {
-    const dateObj = typeof date === 'string' ? parseLocalDate(date) : date;
-    return dayjs(dateObj).startOf('day').toDate();
+    const d =
+        typeof date === 'string'
+            ? dayjs.tz(date, APP_TIMEZONE)
+            : dayjs(date).tz(APP_TIMEZONE);
+    return d.startOf('day').toDate();
 }
 
 /**
- * Obtém o fim do dia (23:59:59.999) no timezone local
+ * Fim do dia (23:59:59.999) em {@link APP_TIMEZONE} para a data informada.
  */
 export function getEndOfDay(date: Date | string): Date {
-    const dateObj = typeof date === 'string' ? parseLocalDate(date) : date;
-    return dayjs(dateObj).endOf('day').toDate();
+    const d =
+        typeof date === 'string'
+            ? dayjs.tz(date, APP_TIMEZONE)
+            : dayjs(date).tz(APP_TIMEZONE);
+    return d.endOf('day').toDate();
 }
 
 /**
- * Formata uma data para string no formato YYYY-MM-DD (data local)
+ * Formata instante para data YYYY-MM-DD no calendário de São Paulo.
  */
 export function formatLocalDate(date: Date): string {
-    return dayjs(date).format('YYYY-MM-DD');
+    return dayjs(date).tz(APP_TIMEZONE).format('YYYY-MM-DD');
 }
 
 /**
- * Formata uma data/hora para string no formato HH:MM (hora local)
+ * Formata instante para hora HH:mm no relógio de São Paulo.
  */
 export function formatLocalTime(date: Date): string {
-    return dayjs(date).format('HH:mm');
+    return dayjs(date).tz(APP_TIMEZONE).format('HH:mm');
 }
 
 /**
@@ -72,25 +78,31 @@ export function isValidDateString(dateString: string): boolean {
 }
 
 /**
- * Retorna o início do dia que está a N dias atrás (últimos N dias).
- * Ex: getStartOfLastDays(30) = início do dia de 30 dias atrás
+ * Retorna o início do dia que está a N dias atrás (últimos N dias),
+ * no calendário de São Paulo.
  */
 export function getStartOfLastDays(days: number): Date {
-    return dayjs().subtract(days, 'day').startOf('day').toDate();
+    return dayjs().tz(APP_TIMEZONE).subtract(days, 'day').startOf('day').toDate();
 }
 
 /**
- * Retorna o início do mês (YYYY-MM). Ex: "2025-02" -> 1º dia 00:00
+ * Retorna o início do mês (YYYY-MM). Ex: "2025-02" -> 1º dia 00:00 em SP
  */
 export function getStartOfMonth(monthString: string): Date {
-    return dayjs(monthString + '-01').startOf('month').toDate();
+    return dayjs
+        .tz(`${monthString}-01`, 'YYYY-MM-DD', APP_TIMEZONE)
+        .startOf('month')
+        .toDate();
 }
 
 /**
- * Retorna o fim do mês (YYYY-MM). Ex: "2025-02" -> último dia 23:59:59
+ * Retorna o fim do mês (YYYY-MM). Ex: "2025-02" -> último dia 23:59:59 em SP
  */
 export function getEndOfMonth(monthString: string): Date {
-    return dayjs(monthString + '-01').endOf('month').toDate();
+    return dayjs
+        .tz(`${monthString}-01`, 'YYYY-MM-DD', APP_TIMEZONE)
+        .endOf('month')
+        .toDate();
 }
 
 /**
@@ -99,4 +111,3 @@ export function getEndOfMonth(monthString: string): Date {
 export function isValidMonthString(monthString: string): boolean {
     return dayjs(monthString, 'YYYY-MM', true).isValid();
 }
-
