@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProductSchema = exports.createProductSchema = void 0;
 const zod_1 = require("zod");
+const zodExpirationDate_1 = require("../utils/zodExpirationDate");
 exports.createProductSchema = zod_1.z.object({
     body: zod_1.z.object({
         name: zod_1.z.string().min(1, { message: "O nome do produto é obrigatório" }),
@@ -15,6 +16,9 @@ exports.createProductSchema = zod_1.z.object({
         active: zod_1.z.boolean().optional().default(true),
         supplierName: zod_1.z.string().optional(),
         supplierDoc: zod_1.z.string().optional(),
+        expirationDate: (0, zodExpirationDate_1.zodExpirationDateField)('create'),
+        initialStock: zod_1.z.coerce.number().int().min(0, { message: 'Estoque inicial deve ser maior ou igual a 0' }).optional().default(0),
+        initialStockUnitPrice: zod_1.z.coerce.number().min(0, { message: 'Preço unitário da entrada inicial deve ser maior ou igual a 0' }).optional(),
     }),
 });
 exports.updateProductSchema = zod_1.z.object({
@@ -31,6 +35,7 @@ exports.updateProductSchema = zod_1.z.object({
         active: zod_1.z.boolean().optional(),
         supplierName: zod_1.z.string().optional().nullable(),
         supplierDoc: zod_1.z.string().optional().nullable(),
+        expirationDate: (0, zodExpirationDate_1.zodExpirationDateField)('update'),
     }),
 });
 //# sourceMappingURL=productSchema.js.map

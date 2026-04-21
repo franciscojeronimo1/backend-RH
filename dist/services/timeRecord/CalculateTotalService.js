@@ -4,16 +4,7 @@ exports.CalculateTotalService = void 0;
 const enums_1 = require("../../../generated/prisma/enums");
 const dateUtils_1 = require("../../utils/dateUtils");
 class CalculateTotalService {
-    calculateDayTotal(records) {
-        if (records.length === 0) {
-            return {
-                date: (0, dateUtils_1.formatLocalDate)((0, dateUtils_1.getCurrentLocalDate)()),
-                periods: [],
-                totalMinutes: 0,
-                totalHours: '0:00',
-                status: 'stopped',
-            };
-        }
+    buildPeriods(records) {
         const periods = [];
         let currentStart = null;
         const sortedRecords = [...records].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -38,6 +29,54 @@ class CalculateTotalService {
                 minutes: 0,
             });
         }
+        return periods;
+    }
+    summarizeByLocalDay(records) {
+        if (records.length === 0) {
+            return [];
+        }
+        const sortedRecords = [...records].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        const periods = this.buildPeriods(records);
+        const byDate = new Map();
+        for (const period of periods) {
+            const d = (0, dateUtils_1.formatLocalDate)(period.start);
+            const list = byDate.get(d) ?? [];
+            list.push(period);
+            byDate.set(d, list);
+        }
+        const dates = [...byDate.keys()].sort();
+        return dates.map((date) => {
+            const dayPeriods = byDate.get(date);
+            const totalMinutes = dayPeriods.reduce((sum, p) => sum + p.minutes, 0);
+            const formattedPeriods = dayPeriods.map((period) => ({
+                start: (0, dateUtils_1.formatLocalTime)(period.start),
+                stop: period.stop ? (0, dateUtils_1.formatLocalTime)(period.stop) : null,
+                minutes: period.minutes,
+            }));
+            const dayRecords = sortedRecords.filter((r) => (0, dateUtils_1.formatLocalDate)(r.timestamp) === date);
+            const lastOfDay = dayRecords[dayRecords.length - 1];
+            const status = lastOfDay && lastOfDay.type === enums_1.TimeRecordType.START ? 'started' : 'stopped';
+            return {
+                date,
+                periods: formattedPeriods,
+                totalMinutes,
+                totalHours: this.formatHours(totalMinutes),
+                status,
+            };
+        });
+    }
+    calculateDayTotal(records) {
+        if (records.length === 0) {
+            return {
+                date: (0, dateUtils_1.formatLocalDate)((0, dateUtils_1.getCurrentLocalDate)()),
+                periods: [],
+                totalMinutes: 0,
+                totalHours: '0:00',
+                status: 'stopped',
+            };
+        }
+        const sortedRecords = [...records].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        const periods = this.buildPeriods(records);
         const totalMinutes = periods.reduce((sum, period) => sum + period.minutes, 0);
         const lastRecord = sortedRecords[sortedRecords.length - 1];
         const status = lastRecord && lastRecord.type === enums_1.TimeRecordType.START ? 'started' : 'stopped';

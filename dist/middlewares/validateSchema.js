@@ -4,11 +4,23 @@ exports.validateSchema = void 0;
 const zod_1 = require("zod");
 const validateSchema = (schema) => async (req, res, next) => {
     try {
-        await schema.parseAsync({
+        const parsed = (await schema.parseAsync({
             body: req.body,
             query: req.query,
             params: req.params,
-        });
+        }));
+        if ('body' in parsed && parsed.body !== undefined) {
+            req.body = parsed.body;
+        }
+        if ('query' in parsed && parsed.query !== undefined) {
+            req.query = parsed.query;
+        }
+        if ('params' in parsed &&
+            parsed.params !== undefined &&
+            typeof parsed.params === 'object' &&
+            parsed.params !== null) {
+            Object.assign(req.params, parsed.params);
+        }
         return next();
     }
     catch (error) {

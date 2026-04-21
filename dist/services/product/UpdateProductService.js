@@ -38,6 +38,8 @@ class UpdateProductService {
             updateData.supplierName = data.supplierName?.trim() || null;
         if (data.supplierDoc !== undefined)
             updateData.supplierDoc = data.supplierDoc?.trim() || null;
+        if (data.expirationDate !== undefined)
+            updateData.expirationDate = data.expirationDate;
         const product = await prismaClient_1.prismaClient.product.update({
             where: { id },
             data: updateData,
