@@ -60,6 +60,8 @@ class StockReportService {
                         id: true,
                         name: true,
                         unit: true,
+                        costPrice: true,
+                        averageCost: true,
                     },
                 },
             },
@@ -80,9 +82,20 @@ class StockReportService {
             acc[productId].exits.push(exit);
             return acc;
         }, {});
+        const products = Object.values(grouped).map((row) => {
+            const { costPrice, averageCost, ...rest } = row.product;
+            return {
+                ...row,
+                product: {
+                    ...rest,
+                    costPrice: costPrice != null ? Number(costPrice) : null,
+                    averageCost: averageCost != null ? Number(averageCost) : null,
+                },
+            };
+        });
         return {
             date: (0, dateUtils_1.formatLocalDate)(targetDate),
-            products: Object.values(grouped),
+            products,
             totalExits: exits.length,
         };
     }
@@ -104,6 +117,8 @@ class StockReportService {
                         id: true,
                         name: true,
                         unit: true,
+                        costPrice: true,
+                        averageCost: true,
                     },
                 },
             },
@@ -124,10 +139,21 @@ class StockReportService {
             acc[productId].exits.push(exit);
             return acc;
         }, {});
+        const products = Object.values(grouped).map((row) => {
+            const { costPrice, averageCost, ...rest } = row.product;
+            return {
+                ...row,
+                product: {
+                    ...rest,
+                    costPrice: costPrice != null ? Number(costPrice) : null,
+                    averageCost: averageCost != null ? Number(averageCost) : null,
+                },
+            };
+        });
         return {
             startDate: (0, dateUtils_1.formatLocalDate)(start),
             endDate: (0, dateUtils_1.formatLocalDate)(end),
-            products: Object.values(grouped),
+            products,
             totalExits: exits.length,
         };
     }

@@ -14,6 +14,22 @@ function subscriptionCurrentPeriodEndUnix(sub) {
 function isPremiumEligibleStripeStatus(status) {
     return status === 'active' || status === 'trialing';
 }
+function prismaSubscriptionStatusFromStripe(status) {
+    if (status === 'active')
+        return 'ACTIVE';
+    if (status === 'trialing')
+        return 'TRIAL';
+    if (status === 'canceled')
+        return 'CANCELLED';
+    if (status === 'past_due' ||
+        status === 'unpaid' ||
+        status === 'incomplete' ||
+        status === 'incomplete_expired' ||
+        status === 'paused') {
+        return 'EXPIRED';
+    }
+    return 'CANCELLED';
+}
 async function syncPremiumFromStripeSubscription(organizationId, stripeCustomerId, stripeSubscriptionId) {
     const sub = await stripe_1.stripe.subscriptions.retrieve(stripeSubscriptionId);
     if (!isPremiumEligibleStripeStatus(sub.status)) {
@@ -119,11 +135,11 @@ class StripeWebhookController {
                     const sub = event.data.object;
                     const periodEnd = subscriptionCurrentPeriodEndUnix(sub);
                     const cancelAtPeriodEnd = sub.cancel_at_period_end;
-                    const status = sub.status === 'active' ? 'ACTIVE' : sub.status === 'trialing' ? 'TRIAL' : 'CANCELLED';
+                    const status = prismaSubscriptionStatusFromStripe(sub.status);
                     const updated = await prismaClient_1.prismaClient.subscription.updateMany({
                         where: { stripeSubscriptionId: sub.id },
                         data: {
-                            status: status,
+                            status,
                             expiresAt: periodEnd ? new Date(periodEnd * 1000) : null,
                             cancelAtPeriodEnd: !!cancelAtPeriodEnd,
                             trialEndsAt: sub.status === 'trialing' && sub.trial_end

@@ -29,6 +29,7 @@ class CreateCheckoutService {
         const session = await stripe_2.stripe.checkout.sessions.create({
             customer: customer.id,
             mode: 'subscription',
+            payment_method_collection: 'if_required',
             line_items: [
                 {
                     price: priceId,

@@ -78,6 +78,8 @@ class StockReportService {
                         id: true,
                         name: true,
                         unit: true,
+                        costPrice: true,
+                        averageCost: true,
                     },
                 },
             },
@@ -101,9 +103,21 @@ class StockReportService {
             return acc;
         }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>);
 
+        const products = Object.values(grouped).map((row) => {
+            const { costPrice, averageCost, ...rest } = row.product;
+            return {
+                ...row,
+                product: {
+                    ...rest,
+                    costPrice: costPrice != null ? Number(costPrice) : null,
+                    averageCost: averageCost != null ? Number(averageCost) : null,
+                },
+            };
+        });
+
         return {
             date: formatLocalDate(targetDate),
-            products: Object.values(grouped),
+            products,
             totalExits: exits.length,
         };
     }
@@ -127,6 +141,8 @@ class StockReportService {
                         id: true,
                         name: true,
                         unit: true,
+                        costPrice: true,
+                        averageCost: true,
                     },
                 },
             },
@@ -150,10 +166,22 @@ class StockReportService {
             return acc;
         }, {} as Record<string, { product: ExitWithProduct['product']; totalQuantity: number; exits: ExitWithProduct[] }>);
 
+        const products = Object.values(grouped).map((row) => {
+            const { costPrice, averageCost, ...rest } = row.product;
+            return {
+                ...row,
+                product: {
+                    ...rest,
+                    costPrice: costPrice != null ? Number(costPrice) : null,
+                    averageCost: averageCost != null ? Number(averageCost) : null,
+                },
+            };
+        });
+
         return {
             startDate: formatLocalDate(start),
             endDate: formatLocalDate(end),
-            products: Object.values(grouped),
+            products,
             totalExits: exits.length,
         };
     }
