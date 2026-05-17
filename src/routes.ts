@@ -130,6 +130,7 @@ router.get("/stock/movements", authMiddleware, tenantMiddleware, premiumMiddlewa
 const stockReportController = new StockReportController();
 router.get("/stock/current", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getCurrentStock.bind(stockReportController)));
 router.get("/stock/low-stock", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getLowStock.bind(stockReportController)));
+router.get("/stock/expiring", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getExpiring.bind(stockReportController)));
 router.get("/stock/daily-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getDailyUsage.bind(stockReportController)));
 router.get("/stock/weekly-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getWeeklyUsage.bind(stockReportController)));
 router.get("/stock/total-value", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getTotalValue.bind(stockReportController)));

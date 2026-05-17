@@ -20,6 +20,39 @@ class StockReportController {
         return res.json(result);
     }
 
+    async getExpiring(req: Request, res: Response) {
+        if (!req.user || !req.user.organizationId) {
+            return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
+        }
+
+        const { days, includeExpired, onlyWithStock, page, limit } = req.query;
+
+        let parsedDays: number | undefined;
+        if (days !== undefined && days !== '') {
+            const n = Number(days);
+            if (!Number.isInteger(n) || n < 1 || n > 365) {
+                return res.status(400).json({
+                    error: 'O parâmetro days deve ser um número inteiro entre 1 e 365',
+                });
+            }
+            parsedDays = n;
+        }
+
+        const stockReportService = new StockReportService();
+        const result = await stockReportService.getExpiringProducts(
+            req.user.organizationId,
+            {
+                days: parsedDays,
+                includeExpired: includeExpired !== 'false',
+                onlyWithStock: onlyWithStock === 'true',
+                page: page ? parseInt(String(page), 10) : undefined,
+                limit: limit ? parseInt(String(limit), 10) : undefined,
+            }
+        );
+
+        return res.json(result);
+    }
+
     async getDailyUsage(req: Request, res: Response) {
         if (!req.user || !req.user.organizationId) {
             return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });

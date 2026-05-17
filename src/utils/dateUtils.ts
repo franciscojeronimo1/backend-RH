@@ -105,9 +105,18 @@ export function getEndOfMonth(monthString: string): Date {
         .toDate();
 }
 
-/**
- * Valida se uma string é um mês válido no formato YYYY-MM
- */
+
 export function isValidMonthString(monthString: string): boolean {
     return dayjs(monthString, 'YYYY-MM', true).isValid();
+}
+
+
+export function diffCalendarDaysInAppTimezone(from: Date, to: Date): number {
+    const fromDay = dayjs(from).tz(APP_TIMEZONE).startOf('day');
+    const toDay = dayjs(to).tz(APP_TIMEZONE).startOf('day');
+    return toDay.diff(fromDay, 'day');
+}
+
+export function getEndOfDayAfterToday(days: number): Date {
+    return getEndOfDay(dayjs().tz(APP_TIMEZONE).add(days, 'day').toDate());
 }

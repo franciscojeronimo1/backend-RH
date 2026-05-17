@@ -1,6 +1,16 @@
 import { z } from 'zod';
+import { getEndOfDay, parseLocalDate } from './dateUtils';
 
 export type ExpirationDateFieldMode = 'create' | 'update';
+
+export const MIN_VALID_EXPIRATION_DATE = getEndOfDay(parseLocalDate('1970-01-01'));
+
+export function isPlaceholderExpirationDate(date: Date | null | undefined): boolean {
+    if (date == null) return true;
+    const ms = date.getTime();
+    if (Number.isNaN(ms) || ms === 0) return true;
+    return ms <= MIN_VALID_EXPIRATION_DATE.getTime();
+}
 
 function normalizeExpirationInput(value: unknown, mode: ExpirationDateFieldMode): unknown {
     if (value === undefined) return undefined;

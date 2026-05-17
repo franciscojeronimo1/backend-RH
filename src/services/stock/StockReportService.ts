@@ -1,5 +1,14 @@
 import { prismaClient } from '../../config/prismaClient';
-import { getStartOfDay, getEndOfDay, parseLocalDate, getCurrentLocalDate, formatLocalDate } from '../../utils/dateUtils';
+import {
+    getStartOfDay,
+    getEndOfDay,
+    parseLocalDate,
+    getCurrentLocalDate,
+    formatLocalDate,
+    diffCalendarDaysInAppTimezone,
+    getEndOfDayAfterToday,
+} from '../../utils/dateUtils';
+import { MIN_VALID_EXPIRATION_DATE } from '../../utils/zodExpirationDate';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -8,6 +17,12 @@ const MAX_LIMIT = 100;
 interface PaginationParams {
     page?: number;
     limit?: number;
+}
+
+interface ExpiringProductsParams extends PaginationParams {
+    days?: number;
+    includeExpired?: boolean;
+    onlyWithStock?: boolean;
 }
 
 class StockReportService {
@@ -58,6 +73,91 @@ class StockReportService {
         };
     }
 
+    async getExpiringProducts(
+        organizationId: string,
+        params?: ExpiringProductsParams
+    ) {
+        const days = params?.days ?? 30;
+        const includeExpired = params?.includeExpired ?? true;
+        const onlyWithStock = params?.onlyWithStock ?? false;
+
+        const todayStart = getStartOfDay(getCurrentLocalDate());
+        const windowEnd = getEndOfDayAfterToday(days);
+
+        const expirationDateFilter: { lte: Date; gte?: Date } = {
+            lte: windowEnd,
+        };
+        if (!includeExpired) {
+            expirationDateFilter.gte = todayStart;
+        }
+
+        const where = {
+            organizationId,
+            active: true,
+            expirationDate: {
+                not: null,
+                gt: MIN_VALID_EXPIRATION_DATE,
+                ...expirationDateFilter,
+            },
+            ...(onlyWithStock ? { currentStock: { gt: 0 } } : {}),
+        };
+
+        const page = Math.max(1, params?.page ?? DEFAULT_PAGE);
+        const limit = Math.min(
+            MAX_LIMIT,
+            Math.max(1, params?.limit ?? DEFAULT_LIMIT)
+        );
+        const skip = (page - 1) * limit;
+
+        const [products, total] = await Promise.all([
+            prismaClient.product.findMany({
+                where,
+                orderBy: {
+                    expirationDate: 'asc',
+                },
+                skip,
+                take: limit,
+            }),
+            prismaClient.product.count({ where }),
+        ]);
+
+        const productsWithExpiration = products.map((product) => {
+            const expirationDate = product.expirationDate!;
+            const isExpired = expirationDate < todayStart;
+            const daysUntilExpiration = diffCalendarDaysInAppTimezone(
+                todayStart,
+                expirationDate
+            );
+
+            return {
+                id: product.id,
+                name: product.name,
+                code: product.code,
+                sku: product.sku,
+                category: product.category,
+                currentStock: product.currentStock,
+                minStock: product.minStock,
+                unit: product.unit,
+                expirationDate: product.expirationDate,
+                daysUntilExpiration,
+                isExpired,
+            };
+        });
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            products: productsWithExpiration,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
+    }
 
     async getDailyUsage(organizationId: string, date?: string) {
         const targetDate = date ? parseLocalDate(date) : getCurrentLocalDate();
