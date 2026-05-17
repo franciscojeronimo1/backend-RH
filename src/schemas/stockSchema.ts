@@ -12,6 +12,44 @@ export const createStockEntrySchema = z.object({
     }),
 });
 
+const stockEntryItemSchema = z.object({
+    productId: z.string().uuid({ message: "ID do produto inválido" }),
+    quantity: z.number().int().positive({ message: "Quantidade deve ser um número inteiro positivo" }),
+    unitPrice: z.number().positive({ message: "Preço unitário deve ser positivo" }),
+});
+
+const stockExitItemSchema = z.object({
+    productId: z.string().uuid({ message: "ID do produto inválido" }),
+    quantity: z.number().int().positive({ message: "Quantidade deve ser um número inteiro positivo" }),
+    unitPrice: z.number().positive({ message: "Preço unitário de venda deve ser positivo" }).optional(),
+});
+
+export const createStockEntriesBatchSchema = z.object({
+    body: z.object({
+        supplierName: z.string().optional(),
+        supplierDoc: z.string().optional(),
+        invoiceNumber: z.string().optional(),
+        notes: z.string().optional(),
+        items: z
+            .array(stockEntryItemSchema)
+            .min(1, { message: "Informe ao menos um item" })
+            .max(100, { message: "Máximo de 100 itens por lote" }),
+    }),
+});
+
+export const createStockExitsBatchSchema = z.object({
+    body: z.object({
+        projectName: z.string().optional(),
+        clientName: z.string().optional(),
+        serviceType: z.string().optional(),
+        notes: z.string().optional(),
+        items: z
+            .array(stockExitItemSchema)
+            .min(1, { message: "Informe ao menos um item" })
+            .max(100, { message: "Máximo de 100 itens por lote" }),
+    }),
+});
+
 export const createStockExitSchema = z.object({
     body: z.object({
         productId: z.string().uuid({ message: "ID do produto inválido" }),
@@ -65,7 +103,9 @@ export const createOrganizationSchema = z.object({
 });
 
 export type CreateStockEntrySchema = z.infer<typeof createStockEntrySchema>;
+export type CreateStockEntriesBatchSchema = z.infer<typeof createStockEntriesBatchSchema>;
 export type CreateStockExitSchema = z.infer<typeof createStockExitSchema>;
+export type CreateStockExitsBatchSchema = z.infer<typeof createStockExitsBatchSchema>;
 export type UpdateStockEntrySchema = z.infer<typeof updateStockEntrySchema>;
 export type UpdateStockExitSchema = z.infer<typeof updateStockExitSchema>;
 export type CreateOrganizationSchema = z.infer<typeof createOrganizationSchema>;

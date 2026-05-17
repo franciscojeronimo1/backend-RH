@@ -24,7 +24,9 @@ import { CreateCategoryController } from './controllers/category/CreateCategoryC
 import { UpdateCategoryController } from './controllers/category/UpdateCategoryController';
 import { DeleteCategoryController } from './controllers/category/DeleteCategoryController';
 import { CreateStockEntryController } from './controllers/stock/CreateStockEntryController';
+import { CreateStockEntriesBatchController } from './controllers/stock/CreateStockEntriesBatchController';
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
+import { CreateStockExitsBatchController } from './controllers/stock/CreateStockExitsBatchController';
 import { UpdateStockEntryController } from './controllers/stock/UpdateStockEntryController';
 import { UpdateStockExitController } from './controllers/stock/UpdateStockExitController';
 import { DeleteStockEntryController } from './controllers/stock/DeleteStockEntryController';
@@ -52,7 +54,7 @@ import { loginSchema } from './schemas/authSchema';
 import { createProductSchema, updateProductSchema } from './schemas/productSchema';
 import { importProductsSchema } from './schemas/importProductsSchema';
 import { createCategorySchema, updateCategorySchema } from './schemas/categorySchema';
-import { createStockEntrySchema, createStockExitSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
+import { createStockEntrySchema, createStockEntriesBatchSchema, createStockExitSchema, createStockExitsBatchSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
 
 const router = Router();
@@ -111,11 +113,13 @@ router.delete("/products/:id", authMiddleware, tenantMiddleware, premiumMiddlewa
 
 // Estoque (PREMIUM)
 router.post("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
+router.post("/stock/entries/batch", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntriesBatchSchema), asyncHandler(new CreateStockEntriesBatchController().handle));
 router.put("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockEntrySchema), asyncHandler(new UpdateStockEntryController().handle));
 router.delete("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteStockEntryController().handle));
 router.get("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
 router.get("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetStockEntryByIdController().handle));
 router.post("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
+router.post("/stock/exits/batch", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitsBatchSchema), asyncHandler(new CreateStockExitsBatchController().handle));
 router.put("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockExitSchema), asyncHandler(new UpdateStockExitController().handle));
 router.delete("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteStockExitController().handle));
 router.get("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
