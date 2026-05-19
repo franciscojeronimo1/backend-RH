@@ -5,8 +5,9 @@ import {
     parseLocalDate,
     getCurrentLocalDate,
     formatLocalDate,
-    diffCalendarDaysInAppTimezone,
+    diffExpirationCalendarDaysFromToday,
     getEndOfDayAfterToday,
+    parseExpirationCalendarDate,
 } from '../../utils/dateUtils';
 import { MIN_VALID_EXPIRATION_DATE } from '../../utils/zodExpirationDate';
 
@@ -123,11 +124,9 @@ class StockReportService {
 
         const productsWithExpiration = products.map((product) => {
             const expirationDate = product.expirationDate!;
-            const isExpired = expirationDate < todayStart;
-            const daysUntilExpiration = diffCalendarDaysInAppTimezone(
-                todayStart,
-                expirationDate
-            );
+            const expDay = parseExpirationCalendarDate(expirationDate);
+            const isExpired = expDay < todayStart;
+            const daysUntilExpiration = diffExpirationCalendarDaysFromToday(expirationDate);
 
             return {
                 id: product.id,

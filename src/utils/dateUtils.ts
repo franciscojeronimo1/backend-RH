@@ -117,6 +117,26 @@ export function diffCalendarDaysInAppTimezone(from: Date, to: Date): number {
     return toDay.diff(fromDay, 'day');
 }
 
+/**
+ * Extrai YYYY-MM-DD da validade persistida (meia-noite UTC = dia civil do formulário).
+ * Evita deslocar um dia ao interpretar com fuso de São Paulo.
+ */
+export function expirationDateToYmd(expirationDate: Date): string {
+    return dayjs.utc(expirationDate).format('YYYY-MM-DD');
+}
+
+/** Início do dia civil da validade no fuso {@link APP_TIMEZONE}. */
+export function parseExpirationCalendarDate(expirationDate: Date): Date {
+    return parseLocalDate(expirationDateToYmd(expirationDate));
+}
+
+/** Dias de calendário entre hoje (SP) e a validade; negativo = já venceu. */
+export function diffExpirationCalendarDaysFromToday(expirationDate: Date): number {
+    const todayStart = getStartOfDay(getCurrentLocalDate());
+    const expDay = parseExpirationCalendarDate(expirationDate);
+    return diffCalendarDaysInAppTimezone(todayStart, expDay);
+}
+
 export function getEndOfDayAfterToday(days: number): Date {
     return getEndOfDay(dayjs().tz(APP_TIMEZONE).add(days, 'day').toDate());
 }

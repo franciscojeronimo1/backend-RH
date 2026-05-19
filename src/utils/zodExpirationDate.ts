@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getEndOfDay, parseLocalDate } from './dateUtils';
+import { expirationDateToYmd, getEndOfDay, parseLocalDate } from './dateUtils';
 
 export type ExpirationDateFieldMode = 'create' | 'update';
 
@@ -38,7 +38,7 @@ export function zodExpirationDateField(mode: ExpirationDateFieldMode) {
                 if (Number.isNaN(ms) || ms === 0) {
                     return mode === 'update' ? null : undefined;
                 }
-                return date;
+                return getEndOfDay(parseLocalDate(expirationDateToYmd(date)));
             })
     );
 }
