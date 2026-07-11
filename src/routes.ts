@@ -23,6 +23,11 @@ import { ListCategoriesController } from './controllers/category/ListCategoriesC
 import { CreateCategoryController } from './controllers/category/CreateCategoryController';
 import { UpdateCategoryController } from './controllers/category/UpdateCategoryController';
 import { DeleteCategoryController } from './controllers/category/DeleteCategoryController';
+import { CreateClientController } from './controllers/client/CreateClientController';
+import { ListClientsController } from './controllers/client/ListClientsController';
+import { GetClientByIdController } from './controllers/client/GetClientByIdController';
+import { UpdateClientController } from './controllers/client/UpdateClientController';
+import { DeleteClientController } from './controllers/client/DeleteClientController';
 import { CreateStockEntryController } from './controllers/stock/CreateStockEntryController';
 import { CreateStockEntriesBatchController } from './controllers/stock/CreateStockEntriesBatchController';
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
@@ -54,6 +59,7 @@ import { loginSchema } from './schemas/authSchema';
 import { createProductSchema, updateProductSchema } from './schemas/productSchema';
 import { importProductsSchema } from './schemas/importProductsSchema';
 import { createCategorySchema, updateCategorySchema } from './schemas/categorySchema';
+import { createClientSchema, updateClientSchema } from './schemas/clientSchema';
 import { createStockEntrySchema, createStockEntriesBatchSchema, createStockExitSchema, createStockExitsBatchSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
 
@@ -85,6 +91,13 @@ router.post("/subscription/portal", authMiddleware, tenantMiddleware, asyncHandl
 
 // Rotas públicas de criação
 router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));
+
+// Clientes (FREE — núcleo ISP; ADMIN e STAFF autenticados)
+router.get("/clients", authMiddleware, tenantMiddleware, asyncHandler(new ListClientsController().handle));
+router.get("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new GetClientByIdController().handle));
+router.post("/clients", authMiddleware, tenantMiddleware, validateSchema(createClientSchema), asyncHandler(new CreateClientController().handle));
+router.put("/clients/:id", authMiddleware, tenantMiddleware, validateSchema(updateClientSchema), asyncHandler(new UpdateClientController().handle));
+router.delete("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteClientController().handle));
 
 // ========== Rotas PREMIUM (exigem plano premium) ==========
 // Usuários - criar staff e deletar (PREMIUM)
