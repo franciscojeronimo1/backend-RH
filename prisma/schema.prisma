@@ -43,6 +43,7 @@ model Organization{
   products Product[]
   categories Category[]
   clients Client[]
+  booklets Booklet[]
   stockEntries StockEntry[]
   stockExits StockExit[]
   subscription Subscription?
@@ -106,12 +107,64 @@ model Client {
   notes            String?
   active           Boolean @default(true)
 
+  booklets Booklet[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([organizationId, cpf])
   @@index([organizationId])
   @@index([organizationId, name])
+}
+
+enum BookletParcelStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model Booklet {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  description        String?
+  notes              String?
+  installmentCount   Int
+  installmentAmount  Decimal  @db.Decimal(10, 2)
+  totalAmount        Decimal  @db.Decimal(10, 2)
+  firstDueDate       DateTime @db.Date
+  active             Boolean  @default(true)
+
+  parcels BookletParcel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, clientId])
+  @@index([clientId])
+}
+
+model BookletParcel {
+  id        String @id @default(uuid())
+  bookletId String
+  booklet   Booklet @relation(fields: [bookletId], references: [id], onDelete: Cascade)
+
+  number    Int
+  dueDate   DateTime @db.Date
+  amount    Decimal  @db.Decimal(10, 2)
+  status    BookletParcelStatus @default(PENDING)
+  paidAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookletId, number])
+  @@index([bookletId])
+  @@index([bookletId, status])
 }
 
 model User{

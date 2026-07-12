@@ -28,6 +28,11 @@ import { ListClientsController } from './controllers/client/ListClientsControlle
 import { GetClientByIdController } from './controllers/client/GetClientByIdController';
 import { UpdateClientController } from './controllers/client/UpdateClientController';
 import { DeleteClientController } from './controllers/client/DeleteClientController';
+import { CreateBookletController } from './controllers/booklet/CreateBookletController';
+import { ListBookletsController } from './controllers/booklet/ListBookletsController';
+import { GetBookletByIdController } from './controllers/booklet/GetBookletByIdController';
+import { DeleteBookletController } from './controllers/booklet/DeleteBookletController';
+import { UpdateBookletParcelController } from './controllers/booklet/UpdateBookletParcelController';
 import { CreateStockEntryController } from './controllers/stock/CreateStockEntryController';
 import { CreateStockEntriesBatchController } from './controllers/stock/CreateStockEntriesBatchController';
 import { CreateStockExitController } from './controllers/stock/CreateStockExitController';
@@ -60,6 +65,7 @@ import { createProductSchema, updateProductSchema } from './schemas/productSchem
 import { importProductsSchema } from './schemas/importProductsSchema';
 import { createCategorySchema, updateCategorySchema } from './schemas/categorySchema';
 import { createClientSchema, updateClientSchema } from './schemas/clientSchema';
+import { createBookletSchema, updateBookletParcelSchema } from './schemas/bookletSchema';
 import { createStockEntrySchema, createStockEntriesBatchSchema, createStockExitSchema, createStockExitsBatchSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
 
@@ -98,6 +104,19 @@ router.get("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new Ge
 router.post("/clients", authMiddleware, tenantMiddleware, validateSchema(createClientSchema), asyncHandler(new CreateClientController().handle));
 router.put("/clients/:id", authMiddleware, tenantMiddleware, validateSchema(updateClientSchema), asyncHandler(new UpdateClientController().handle));
 router.delete("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteClientController().handle));
+
+// Carnês (FREE — ligado ao cliente ISP)
+router.get("/booklets", authMiddleware, tenantMiddleware, asyncHandler(new ListBookletsController().handle));
+router.get("/booklets/:id", authMiddleware, tenantMiddleware, asyncHandler(new GetBookletByIdController().handle));
+router.post("/booklets", authMiddleware, tenantMiddleware, validateSchema(createBookletSchema), asyncHandler(new CreateBookletController().handle));
+router.delete("/booklets/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteBookletController().handle));
+router.put(
+    "/booklets/:id/parcels/:parcelId",
+    authMiddleware,
+    tenantMiddleware,
+    validateSchema(updateBookletParcelSchema),
+    asyncHandler(new UpdateBookletParcelController().handle)
+);
 
 // ========== Rotas PREMIUM (exigem plano premium) ==========
 // Usuários - criar staff e deletar (PREMIUM)
