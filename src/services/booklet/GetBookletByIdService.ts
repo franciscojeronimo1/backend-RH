@@ -1,4 +1,5 @@
 import { prismaClient } from '../../config/prismaClient';
+import { computeBookletTotals } from './bookletTotals';
 
 class GetBookletByIdService {
     async execute(id: string, organizationId: string) {
@@ -26,7 +27,10 @@ class GetBookletByIdService {
             throw new Error('Carnê não encontrado');
         }
 
-        return booklet;
+        return {
+            ...booklet,
+            ...computeBookletTotals(booklet.parcels),
+        };
     }
 }
 

@@ -1,4 +1,5 @@
 import { prismaClient } from '../../config/prismaClient';
+import { computeBookletTotals } from './bookletTotals';
 
 class ListBookletsService {
     async execute(organizationId: string, clientId?: string) {
@@ -31,7 +32,12 @@ class ListBookletsService {
             orderBy: { createdAt: 'desc' },
         });
 
-        return { booklets };
+        return {
+            booklets: booklets.map((booklet) => ({
+                ...booklet,
+                ...computeBookletTotals(booklet.parcels),
+            })),
+        };
     }
 }
 
