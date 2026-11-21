@@ -48,6 +48,11 @@ model Organization{
   stockExits StockExit[]
   subscription Subscription?
 
+  // Módulo Academia
+  gymSettings GymSettings?
+  checkIns CheckIn[]
+  notifications Notification[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -107,7 +112,20 @@ model Client {
   notes            String?
   active           Boolean @default(true)
 
+  // Módulo Academia (aluno)
+  memberStatus       MemberStatus @default(ACTIVE)
+  lastCheckInAt      DateTime?
+  activeSince        DateTime?
+  planName           String?
+  planExpiresAt      DateTime? @db.Date
+  autoControl        Boolean @default(true)
+  statusChangedAt    DateTime?
+  deactivatedAt      DateTime?
+  deactivationReason DeactivationReason?
+
   booklets Booklet[]
+  checkIns CheckIn[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,6 +133,7 @@ model Client {
   @@unique([organizationId, cpf])
   @@index([organizationId])
   @@index([organizationId, name])
+  @@index([organizationId, memberStatus])
 }
 
 enum BookletParcelStatus {
@@ -189,6 +208,9 @@ model User{
   // Relações de estoque
   stockEntries StockEntry[]
   stockExits StockExit[]
+
+  // Check-ins registrados por este usuário (recepção)
+  checkInsRegistered CheckIn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -314,4 +336,83 @@ model StockExit{
 
   @@index([organizationId, createdAt])
   @@index([organizationId, productId])
+}
+// ================= Módulo Academia =================
+
+enum MemberStatus {
+  ACTIVE
+  AT_RISK
+  INACTIVE
+}
+
+enum DeactivationReason {
+  AUTO_ABSENCE
+  AUTO_PLAN_EXPIRED
+  MANUAL
+}
+
+enum NotificationType {
+  MEMBER_AT_RISK
+  MEMBER_DEACTIVATED
+  MEMBER_REACTIVATED
+  PLAN_EXPIRING
+  PLAN_EXPIRED
+}
+
+model GymSettings {
+  id             String @id @default(uuid())
+  organizationId String @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  enabled                 Boolean @default(false)
+  atRiskAfterDays         Int     @default(7)
+  inactiveAfterDays       Int     @default(30)
+  autoDeactivate          Boolean @default(true)
+  autoReactivateOnCheckIn Boolean @default(true)
+  planExpiringNoticeDays  Int     @default(5)
+  deactivateOnPlanExpired Boolean @default(false)
+  planExpiredGraceDays    Int     @default(5)
+  notifyAtRisk            Boolean @default(true)
+
+  lastEvaluatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CheckIn {
+  id             String @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  checkedInAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([organizationId, checkedInAt])
+  @@index([clientId, checkedInAt])
+}
+
+model Notification {
+  id             String @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type     NotificationType
+  title    String
+  message  String
+  // Chave para idempotência (o job pode rodar várias vezes sem duplicar avisos)
+  dedupeKey String
+  readAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, readAt])
+  @@index([organizationId, createdAt])
 }

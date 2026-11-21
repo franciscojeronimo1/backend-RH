@@ -68,6 +68,8 @@ import { createClientSchema, updateClientSchema } from './schemas/clientSchema';
 import { createBookletSchema, updateBookletParcelSchema } from './schemas/bookletSchema';
 import { createStockEntrySchema, createStockEntriesBatchSchema, createStockExitSchema, createStockExitsBatchSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
+import { updateGymSettingsSchema, updateGymMemberSchema, createCheckInSchema } from './schemas/gymSchema';
+import { gymController, gymCronHandler } from './controllers/gym/GymController';
 
 const router = Router();
 
@@ -117,6 +119,26 @@ router.put(
     validateSchema(updateBookletParcelSchema),
     asyncHandler(new UpdateBookletParcelController().handle)
 );
+
+// ========== Academia: controle inteligente de alunos (FREE — usa os clientes como alunos) ==========
+// Cron externo (serverless): Authorization: Bearer <CRON_SECRET>
+router.get("/gym/cron", asyncHandler(gymCronHandler));
+router.get("/gym/settings", authMiddleware, tenantMiddleware, gymController.getSettings);
+router.put("/gym/settings", authMiddleware, tenantMiddleware, roleMiddleware(['ADMIN']), validateSchema(updateGymSettingsSchema), gymController.updateSettings);
+router.post("/gym/evaluate", authMiddleware, tenantMiddleware, roleMiddleware(['ADMIN']), gymController.evaluateNow);
+router.get("/gym/dashboard", authMiddleware, tenantMiddleware, gymController.dashboard);
+router.get("/gym/members", authMiddleware, tenantMiddleware, gymController.listMembers);
+router.get("/gym/members/:id", authMiddleware, tenantMiddleware, gymController.getMember);
+router.patch("/gym/members/:id", authMiddleware, tenantMiddleware, validateSchema(updateGymMemberSchema), gymController.updateMember);
+router.post("/gym/members/:id/deactivate", authMiddleware, tenantMiddleware, roleMiddleware(['ADMIN']), gymController.deactivateMember);
+router.post("/gym/members/:id/reactivate", authMiddleware, tenantMiddleware, gymController.reactivateMember);
+router.post("/gym/checkins", authMiddleware, tenantMiddleware, validateSchema(createCheckInSchema), gymController.createCheckIn);
+router.get("/gym/checkins", authMiddleware, tenantMiddleware, gymController.listCheckIns);
+router.delete("/gym/checkins/:id", authMiddleware, tenantMiddleware, gymController.deleteCheckIn);
+router.get("/gym/notifications", authMiddleware, tenantMiddleware, gymController.listNotifications);
+router.get("/gym/notifications/unread-count", authMiddleware, tenantMiddleware, gymController.unreadCount);
+router.post("/gym/notifications/read-all", authMiddleware, tenantMiddleware, gymController.markAllNotificationsRead);
+router.post("/gym/notifications/:id/read", authMiddleware, tenantMiddleware, gymController.markNotificationRead);
 
 // ========== Rotas PREMIUM (exigem plano premium) ==========
 // Usuários - criar staff e deletar (PREMIUM)
