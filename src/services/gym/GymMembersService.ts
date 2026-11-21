@@ -190,8 +190,12 @@ class GymMembersService {
         return withComputed(member);
     }
 
-    async reactivate(organizationId: string, id: string) {
-        await this.findOrFail(organizationId, id);
+    async reactivate(organizationId: string, id: string, isAdmin = false) {
+        const current = await this.findOrFail(organizationId, id);
+        // Quem foi desativado manualmente pelo dono só pode ser reativado por um administrador.
+        if (!isAdmin && current.deactivationReason === 'MANUAL') {
+            throw new GymError('Só um administrador pode reativar um aluno desativado manualmente.', 403, 'ADMIN_REQUIRED');
+        }
         const now = new Date();
         const member = await prismaClient.client.update({
             where: { id },

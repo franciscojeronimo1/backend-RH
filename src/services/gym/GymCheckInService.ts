@@ -35,6 +35,15 @@ class GymCheckInService {
             }
         }
 
+        // Desativado manualmente (ex.: inadimplente, suspenso): a presença não reativa sozinho.
+        if (wasInactive && member.deactivationReason === 'MANUAL') {
+            throw new GymError(
+                'Este aluno foi desativado manualmente. Reative o aluno antes de registrar a presença.',
+                409,
+                'MEMBER_MANUALLY_INACTIVE'
+            );
+        }
+
         const settings = await new GymSettingsService().get(organizationId);
         if (wasInactive && !settings.autoReactivateOnCheckIn) {
             throw new GymError(

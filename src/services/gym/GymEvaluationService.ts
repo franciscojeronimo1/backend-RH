@@ -84,9 +84,12 @@ class GymEvaluationService {
             for (const member of members) {
                 summary.evaluated++;
                 const evaluation = evaluateMember(member, settings, now);
-                notifications.push(...evaluation.notifications.map((n) => ({ ...n, clientId: member.id })));
+                const planned = evaluation.notifications.map((n) => ({ ...n, clientId: member.id }));
 
-                if (!evaluation.statusChanged) continue;
+                if (!evaluation.statusChanged) {
+                    notifications.push(...planned);
+                    continue;
+                }
 
                 const isDeactivation = evaluation.nextStatus === 'INACTIVE';
                 const result = await prismaClient.client.updateMany({
@@ -103,7 +106,9 @@ class GymEvaluationService {
                             : {}),
                     },
                 });
+                // Outro processo (check-in, painel, cron) já mudou o aluno: não gera avisos de algo que não aconteceu.
                 if (result.count === 0) continue;
+                notifications.push(...planned);
 
                 if (isDeactivation) summary.deactivated++;
                 else if (evaluation.nextStatus === 'AT_RISK') summary.becameAtRisk++;

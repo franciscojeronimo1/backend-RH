@@ -83,7 +83,7 @@ export const gymController = {
     reactivateMember: gym(async (req, res, orgId) =>
         res.json({
             message: 'Aluno reativado',
-            member: await new GymMembersService().reactivate(orgId, String(req.params.id)),
+            member: await new GymMembersService().reactivate(orgId, String(req.params.id), req.user?.role === 'ADMIN'),
         })
     ),
 
