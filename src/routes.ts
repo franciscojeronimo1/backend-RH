@@ -93,7 +93,7 @@ router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(up
 
 // Assinatura - área de pagamento (FREE acessa para ver plano e fazer upgrade)
 router.get("/subscription", authMiddleware, tenantMiddleware, asyncHandler(new GetSubscriptionController().handle));
-router.get("/subscription/test", asyncHandler(new TestStripeController().handle));
+router.get("/subscription/test", authMiddleware, tenantMiddleware, roleMiddleware(['ADMIN']), asyncHandler(new TestStripeController().handle));
 router.post("/subscription/checkout", authMiddleware, tenantMiddleware, asyncHandler(new CreateCheckoutController().handle));
 router.post("/subscription/portal", authMiddleware, tenantMiddleware, asyncHandler(new CreatePortalSessionController().handle));
 
