@@ -8,13 +8,13 @@ class GymNotificationService {
     /** Cria avisos ignorando os que já existem (mesma dedupeKey). Retorna quantos foram criados. */
     async createMany(
         organizationId: string,
-        items: Array<PlannedNotification & { clientId?: string | null }>
+        items: Array<PlannedNotification & { memberId?: string | null }>
     ): Promise<number> {
         if (items.length === 0) return 0;
         const result = await prismaClient.notification.createMany({
             data: items.map((n) => ({
                 organizationId,
-                clientId: n.clientId ?? null,
+                memberId: n.memberId ?? null,
                 type: n.type,
                 title: n.title,
                 message: n.message,
@@ -38,7 +38,7 @@ class GymNotificationService {
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
-                include: { client: { select: { id: true, name: true, phone: true, memberStatus: true } } },
+                include: { member: { select: { id: true, name: true, phone: true, memberStatus: true } } },
             }),
             prismaClient.notification.count({ where }),
             this.unreadCount(organizationId),

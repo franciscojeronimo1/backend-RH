@@ -8,30 +8,34 @@ import { getEndOfDay, getStartOfDay, isValidDateString, parseLocalDate } from '.
 /** Evita presença duplicada se a recepção clicar duas vezes. */
 const DUPLICATE_WINDOW_MS = 60 * 60 * 1000;
 
+/** Presença = evento de acesso liberado na entrada (manual ou catraca). */
+const PRESENCE = { result: 'GRANTED', direction: 'IN' } as const;
+
 class GymCheckInService {
-    async register(organizationId: string, clientId: string, userId?: string) {
-        const member = await prismaClient.client.findFirst({
-            where: { id: clientId, organizationId },
+    /** Check-in manual feito pela recepção. */
+    async register(organizationId: string, memberId: string, userId?: string) {
+        const member = await prismaClient.member.findFirst({
+            where: { id: memberId, organizationId },
             select: memberPublicSelect,
         });
         if (!member) throw new GymError('Aluno não encontrado', 404);
 
         const now = new Date();
-        const wasInactive = member.memberStatus === 'INACTIVE' || !member.active;
+        const wasInactive = member.memberStatus === 'INACTIVE';
 
         // Clique duplo / presença repetida: não cria outro registro (só para quem já está ativo)
         if (!wasInactive) {
-            const recent = await prismaClient.checkIn.findFirst({
-                where: { organizationId, clientId, checkedInAt: { gte: new Date(now.getTime() - DUPLICATE_WINDOW_MS) } },
-                orderBy: { checkedInAt: 'desc' },
+            const recent = await prismaClient.accessEvent.findFirst({
+                where: {
+                    organizationId,
+                    memberId,
+                    ...PRESENCE,
+                    occurredAt: { gte: new Date(now.getTime() - DUPLICATE_WINDOW_MS) },
+                },
+                orderBy: { occurredAt: 'desc' },
             });
             if (recent) {
-                return {
-                    checkIn: recent,
-                    member: withComputed(member, now),
-                    alreadyCheckedIn: true,
-                    reactivated: false,
-                };
+                return { checkIn: recent, member: withComputed(member, now), alreadyCheckedIn: true, reactivated: false };
             }
         }
 
@@ -46,25 +50,20 @@ class GymCheckInService {
 
         const settings = await new GymSettingsService().get(organizationId);
         if (wasInactive && !settings.autoReactivateOnCheckIn) {
-            throw new GymError(
-                'Este aluno está inativo. Reative o aluno antes de registrar a presença.',
-                409,
-                'MEMBER_INACTIVE'
-            );
+            throw new GymError('Este aluno está inativo. Reative o aluno antes de registrar a presença.', 409, 'MEMBER_INACTIVE');
         }
-        const statusChanges = member.memberStatus !== 'ACTIVE' || !member.active;
+        const statusChanges = member.memberStatus !== 'ACTIVE';
 
         const [checkIn, updated] = await prismaClient.$transaction([
-            prismaClient.checkIn.create({
-                data: { organizationId, clientId, userId: userId ?? null, checkedInAt: now },
+            prismaClient.accessEvent.create({
+                data: { organizationId, memberId, userId: userId ?? null, method: 'MANUAL', ...PRESENCE, occurredAt: now },
             }),
-            prismaClient.client.update({
-                where: { id: clientId },
+            prismaClient.member.update({
+                where: { id: memberId },
                 data: {
                     lastCheckInAt: now,
                     ...(statusChanges
                         ? {
-                              active: true,
                               memberStatus: 'ACTIVE',
                               statusChangedAt: now,
                               activeSince: now,
@@ -80,55 +79,51 @@ class GymCheckInService {
         if (wasInactive) {
             await new GymNotificationService().createMany(organizationId, [
                 {
-                    clientId,
+                    memberId,
                     type: 'MEMBER_REACTIVATED',
                     title: `${member.name} voltou a treinar!`,
                     message: 'Registrou presença e foi reativado(a) automaticamente.',
-                    dedupeKey: `REACTIVATED:${clientId}:${checkIn.id}`,
+                    dedupeKey: `REACTIVATED:${memberId}:${checkIn.id}`,
                 },
             ]);
         }
 
-        return {
-            checkIn,
-            member: withComputed(updated, now),
-            alreadyCheckedIn: false,
-            reactivated: wasInactive,
-        };
+        return { checkIn, member: withComputed(updated, now), alreadyCheckedIn: false, reactivated: wasInactive };
     }
 
+    /** Presenças do dia (manuais e da catraca), inclusive acessos negados. */
     async list(organizationId: string, date?: string) {
         const day = date && isValidDateString(date) ? parseLocalDate(date) : new Date();
-        const checkIns = await prismaClient.checkIn.findMany({
-            where: {
-                organizationId,
-                checkedInAt: { gte: getStartOfDay(day), lte: getEndOfDay(day) },
-            },
-            orderBy: { checkedInAt: 'desc' },
+        const checkIns = await prismaClient.accessEvent.findMany({
+            where: { organizationId, occurredAt: { gte: getStartOfDay(day), lte: getEndOfDay(day) } },
+            orderBy: { occurredAt: 'desc' },
             take: 500,
             include: {
-                client: { select: { id: true, name: true, memberStatus: true, planName: true } },
+                member: { select: { id: true, name: true, memberStatus: true, planName: true } },
                 user: { select: { id: true, name: true } },
             },
         });
-        return { checkIns, total: checkIns.length };
+        return { checkIns, total: checkIns.filter((c) => c.result === 'GRANTED' && c.direction === 'IN').length };
     }
 
-    /** Desfaz uma presença registrada por engano e recalcula a última presença do aluno. */
+    /** Desfaz uma presença manual registrada por engano e recalcula a última presença do aluno. */
     async remove(organizationId: string, id: string) {
-        const checkIn = await prismaClient.checkIn.findFirst({ where: { id, organizationId } });
-        if (!checkIn) throw new GymError('Presença não encontrada', 404);
+        const event = await prismaClient.accessEvent.findFirst({ where: { id, organizationId } });
+        if (!event) throw new GymError('Presença não encontrada', 404);
+        if (event.method !== 'MANUAL') throw new GymError('Só presenças registradas manualmente podem ser removidas', 400);
 
-        await prismaClient.checkIn.delete({ where: { id } });
-        const latest = await prismaClient.checkIn.findFirst({
-            where: { organizationId, clientId: checkIn.clientId },
-            orderBy: { checkedInAt: 'desc' },
-            select: { checkedInAt: true },
-        });
-        await prismaClient.client.update({
-            where: { id: checkIn.clientId },
-            data: { lastCheckInAt: latest?.checkedInAt ?? null },
-        });
+        await prismaClient.accessEvent.delete({ where: { id } });
+        if (event.memberId) {
+            const latest = await prismaClient.accessEvent.findFirst({
+                where: { organizationId, memberId: event.memberId, ...PRESENCE },
+                orderBy: { occurredAt: 'desc' },
+                select: { occurredAt: true },
+            });
+            await prismaClient.member.update({
+                where: { id: event.memberId },
+                data: { lastCheckInAt: latest?.occurredAt ?? null },
+            });
+        }
         return { message: 'Presença removida' };
     }
 }

@@ -1,7 +1,20 @@
 import { prismaClient } from '../../config/prismaClient';
 
 class GetSubscriptionService {
-    async execute(organizationId: string) {
+    async execute(organizationId: string, options: { billingExempt?: boolean } = {}) {
+        // Cobrança manual (ex.: academia): sempre Premium, nunca pede pagamento, sem Stripe.
+        if (options.billingExempt) {
+            return {
+                plan: 'PREMIUM' as const,
+                status: 'ACTIVE' as const,
+                isPremium: true,
+                isTrialing: false,
+                needsPayment: false,
+                billingManaged: 'MANUAL' as const,
+                cancelAtPeriodEnd: false,
+            };
+        }
+
         const subscription = await prismaClient.subscription.findUnique({
             where: { organizationId },
         });
@@ -13,6 +26,7 @@ class GetSubscriptionService {
                 isPremium: false,
                 isTrialing: false,
                 needsPayment: false,
+                billingManaged: 'STRIPE' as const,
                 message: 'Nenhuma assinatura ativa. Faça upgrade para Premium para desbloquear todos os recursos.',
             };
         }
@@ -28,6 +42,7 @@ class GetSubscriptionService {
             isPremium,
             isTrialing,
             needsPayment,
+            billingManaged: 'STRIPE' as const,
             startedAt: subscription.startedAt,
             expiresAt: subscription.expiresAt,
             trialEndsAt: subscription.trialEndsAt,

@@ -24,10 +24,8 @@ export interface GymRuleSettings {
 }
 
 export const DEFAULT_GYM_SETTINGS: GymRuleSettings & {
-    enabled: boolean;
     autoReactivateOnCheckIn: boolean;
 } = {
-    enabled: false,
     atRiskAfterDays: 7,
     inactiveAfterDays: 30,
     autoDeactivate: true,
@@ -42,7 +40,6 @@ export interface MemberSnapshot {
     id: string;
     name: string;
     memberStatus: MemberStatusValue;
-    active: boolean;
     autoControl: boolean;
     lastCheckInAt: Date | null;
     activeSince: Date | null;
@@ -108,7 +105,7 @@ export function evaluateMember(member: MemberSnapshot, settings: GymRuleSettings
     };
 
     // Alunos inativos ou com controle automático desligado não são alterados pelo sistema.
-    if (member.memberStatus === 'INACTIVE' || !member.active || !member.autoControl) {
+    if (member.memberStatus === 'INACTIVE' || !member.autoControl) {
         return result;
     }
 

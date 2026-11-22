@@ -37,6 +37,7 @@ class LoginService {
             select: {
                 id: true,
                 name: true,
+                businessType: true,
             },
         }) : null;
 
@@ -53,10 +54,12 @@ class LoginService {
                 email: user.email,
                 role: user.role,
                 organizationId: user.organizationId,
+                businessType: organization?.businessType ?? 'STANDARD',
             },
             organization: organization ? {
                 id: organization.id,
                 name: organization.name,
+                businessType: organization.businessType,
             } : null,
             token,
         };

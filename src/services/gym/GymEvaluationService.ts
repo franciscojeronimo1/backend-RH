@@ -5,7 +5,7 @@ import { evaluateMember, type MemberSnapshot, type PlannedNotification } from '.
 
 export interface EvaluationSummary {
     organizationId: string;
-    skipped?: 'DISABLED' | 'RECENTLY_EVALUATED';
+    skipped?: 'RECENTLY_EVALUATED';
     evaluated: number;
     becameAtRisk: number;
     deactivated: number;
@@ -19,7 +19,6 @@ const memberSelect = {
     id: true,
     name: true,
     memberStatus: true,
-    active: true,
     autoControl: true,
     lastCheckInAt: true,
     activeSince: true,
@@ -53,7 +52,6 @@ class GymEvaluationService {
         };
 
         const settings = await this.settingsService.get(organizationId);
-        if (!settings.enabled) return { ...summary, skipped: 'DISABLED' };
         if (
             options.minIntervalMs &&
             settings.lastEvaluatedAt &&
@@ -64,10 +62,9 @@ class GymEvaluationService {
 
         let cursor: string | undefined;
         for (;;) {
-            const members: MemberSnapshot[] = await prismaClient.client.findMany({
+            const members: MemberSnapshot[] = await prismaClient.member.findMany({
                 where: {
                     organizationId,
-                    active: true,
                     autoControl: true,
                     memberStatus: { in: ['ACTIVE', 'AT_RISK'] },
                 },
@@ -79,12 +76,12 @@ class GymEvaluationService {
             if (members.length === 0) break;
             cursor = members[members.length - 1]!.id;
 
-            const notifications: Array<PlannedNotification & { clientId: string }> = [];
+            const notifications: Array<PlannedNotification & { memberId: string }> = [];
 
             for (const member of members) {
                 summary.evaluated++;
                 const evaluation = evaluateMember(member, settings, now);
-                const planned = evaluation.notifications.map((n) => ({ ...n, clientId: member.id }));
+                const planned = evaluation.notifications.map((n) => ({ ...n, memberId: member.id }));
 
                 if (!evaluation.statusChanged) {
                     notifications.push(...planned);
@@ -92,14 +89,13 @@ class GymEvaluationService {
                 }
 
                 const isDeactivation = evaluation.nextStatus === 'INACTIVE';
-                const result = await prismaClient.client.updateMany({
-                    where: { id: member.id, organizationId, memberStatus: member.memberStatus, active: true },
+                const result = await prismaClient.member.updateMany({
+                    where: { id: member.id, organizationId, memberStatus: member.memberStatus },
                     data: {
                         memberStatus: evaluation.nextStatus,
                         statusChangedAt: now,
                         ...(isDeactivation
                             ? {
-                                  active: false,
                                   deactivatedAt: now,
                                   deactivationReason: evaluation.deactivationReason,
                               }
@@ -127,14 +123,14 @@ class GymEvaluationService {
         return summary;
     }
 
-    /** Roda para todas as academias com o módulo ligado. Usado pelo agendador e pelo endpoint de cron. */
+    /** Roda para todas as academias (businessType = GYM). Usado pelo agendador e pelo endpoint de cron. */
     async evaluateAll(options: { now?: Date; minIntervalMs?: number } = {}): Promise<EvaluationSummary[]> {
-        const orgs = await prismaClient.gymSettings.findMany({
-            where: { enabled: true },
-            select: { organizationId: true },
+        const orgs = await prismaClient.organization.findMany({
+            where: { businessType: 'GYM' },
+            select: { id: true },
         });
         const results: EvaluationSummary[] = [];
-        for (const { organizationId } of orgs) {
+        for (const { id: organizationId } of orgs) {
             try {
                 results.push(await this.evaluateOrganization(organizationId, options));
             } catch (error) {

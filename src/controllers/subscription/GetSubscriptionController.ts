@@ -12,7 +12,7 @@ class GetSubscriptionController {
         }
 
         const service = new GetSubscriptionService();
-        const subscription = await service.execute(organizationId);
+        const subscription = await service.execute(organizationId, { billingExempt: req.user?.billingExempt === true });
 
         return res.json(subscription);
     }

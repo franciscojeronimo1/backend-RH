@@ -14,7 +14,6 @@ function member(overrides: Partial<MemberSnapshot> = {}): MemberSnapshot {
         id: 'm1',
         name: 'Ana',
         memberStatus: 'ACTIVE',
-        active: true,
         autoControl: true,
         lastCheckInAt: daysAgo(1),
         activeSince: null,
@@ -82,11 +81,10 @@ test('em risco que voltou (presença recente) volta para ativo', () => {
     assert.equal(r.statusChanged, true);
 });
 
-test('inativo, desligado do controle automático ou com cadastro inativo não muda', () => {
+test('inativo ou com controle automático desligado não muda', () => {
     for (const m of [
         member({ memberStatus: 'INACTIVE', lastCheckInAt: daysAgo(100) }),
         member({ autoControl: false, lastCheckInAt: daysAgo(100) }),
-        member({ active: false, lastCheckInAt: daysAgo(100) }),
     ]) {
         const r = evaluateMember(m, S, NOW);
         assert.equal(r.statusChanged, false);
@@ -126,4 +124,13 @@ test('virada do dia usa fuso de São Paulo (presença às 23h conta como o dia c
     const r = evaluateMember(member({ lastCheckInAt: last }), S, NOW);
     assert.equal(r.daysAbsent, 7);
     assert.equal(r.nextStatus, 'AT_RISK');
+});
+
+import { planEndYmd, addToYmd } from '../src/services/gym/gymDates';
+
+test('vencimento do plano: mensal começando 15/01 vale até 14/02; trimestral; diária', () => {
+    assert.equal(planEndYmd('2026-01-15', 1, 0), '2026-02-14');
+    assert.equal(planEndYmd('2026-01-15', 3, 0), '2026-04-14');
+    assert.equal(planEndYmd('2026-11-21', 0, 1), '2026-11-21');
+    assert.equal(addToYmd('2026-12-31', 0, 1), '2027-01-01');
 });

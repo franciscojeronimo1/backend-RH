@@ -10,7 +10,12 @@ interface TokenPayload {
 declare global {
   namespace Express {
     interface Request {
-      user?: TokenPayload & { organizationId?: string };
+      user?: TokenPayload & {
+        organizationId?: string;
+        /** Preenchidos pelo tenantMiddleware */
+        businessType?: 'STANDARD' | 'GYM';
+        billingExempt?: boolean;
+      };
     }
   }
 }

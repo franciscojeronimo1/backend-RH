@@ -48,10 +48,21 @@ model Organization{
   stockExits StockExit[]
   subscription Subscription?
 
+  // Tipo de negócio: GYM mostra somente o módulo Academia (e esconde o sistema atual)
+  businessType  BusinessType @default(STANDARD)
+  // true = assinatura do sistema controlada manualmente (sem Stripe, sem tela de pagamento)
+  billingExempt Boolean      @default(false)
+
   // Módulo Academia
-  gymSettings GymSettings?
-  checkIns CheckIn[]
-  notifications Notification[]
+  gymSettings       GymSettings?
+  members           Member[]
+  membershipPlans   MembershipPlan[]
+  memberships       Membership[]
+  payments          Payment[]
+  accessEvents      AccessEvent[]
+  accessDevices     AccessDevice[]
+  memberCredentials MemberCredential[]
+  notifications     Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,20 +123,7 @@ model Client {
   notes            String?
   active           Boolean @default(true)
 
-  // Módulo Academia (aluno)
-  memberStatus       MemberStatus @default(ACTIVE)
-  lastCheckInAt      DateTime?
-  activeSince        DateTime?
-  planName           String?
-  planExpiresAt      DateTime? @db.Date
-  autoControl        Boolean @default(true)
-  statusChangedAt    DateTime?
-  deactivatedAt      DateTime?
-  deactivationReason DeactivationReason?
-
   booklets Booklet[]
-  checkIns CheckIn[]
-  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,7 +131,6 @@ model Client {
   @@unique([organizationId, cpf])
   @@index([organizationId])
   @@index([organizationId, name])
-  @@index([organizationId, memberStatus])
 }
 
 enum BookletParcelStatus {
@@ -209,8 +206,10 @@ model User{
   stockEntries StockEntry[]
   stockExits StockExit[]
 
-  // Check-ins registrados por este usuário (recepção)
-  checkInsRegistered CheckIn[]
+  // Academia: o que este usuário (recepção) registrou
+  accessEventsRegistered AccessEvent[]
+  paymentsReceived       Payment[]
+  membershipsCreated     Membership[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -337,7 +336,16 @@ model StockExit{
   @@index([organizationId, createdAt])
   @@index([organizationId, productId])
 }
+
+// ================= Tipo de negócio =================
+
+enum BusinessType {
+  STANDARD
+  GYM
+}
+
 // ================= Módulo Academia =================
+// Usado somente por organizações com businessType = GYM.
 
 enum MemberStatus {
   ACTIVE
@@ -359,12 +367,54 @@ enum NotificationType {
   PLAN_EXPIRED
 }
 
+enum MembershipStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  TRANSFER
+  OTHER
+}
+
+enum CredentialType {
+  PASSWORD
+  FINGERPRINT
+  CARD
+}
+
+enum AccessMethod {
+  MANUAL
+  PASSWORD
+  FINGERPRINT
+  CARD
+}
+
+enum AccessDirection {
+  IN
+  OUT
+}
+
+enum AccessResult {
+  GRANTED
+  DENIED
+}
+
 model GymSettings {
-  id             String @id @default(uuid())
-  organizationId String @unique
+  id             String       @id @default(uuid())
+  organizationId String       @unique
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  enabled                 Boolean @default(false)
   atRiskAfterDays         Int     @default(7)
   inactiveAfterDays       Int     @default(30)
   autoDeactivate          Boolean @default(true)
@@ -380,32 +430,215 @@ model GymSettings {
   updatedAt DateTime @updatedAt
 }
 
-model CheckIn {
-  id             String @id @default(uuid())
+/// Aluno da academia (separado de Client, que é do sistema de carnês).
+model Member {
+  id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  clientId       String
-  client         Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name      String
+  cpf       String?
+  phone     String?
+  email     String?
+  birthDate DateTime? @db.Date
+  notes     String?
+
+  /// Senha numérica digitada na catraca. Única por academia.
+  accessCode String?
+
+  memberStatus       MemberStatus        @default(ACTIVE)
+  autoControl        Boolean             @default(true)
+  lastCheckInAt      DateTime?
+  /// Início da contagem de ausência (cadastro ou última reativação)
+  activeSince        DateTime            @default(now())
+  statusChangedAt    DateTime?
+  deactivatedAt      DateTime?
+  deactivationReason DeactivationReason?
+
+  /// Cópia da matrícula vigente (atualizada ao matricular/renovar), usada em filtros e regras
+  planName      String?
+  planExpiresAt DateTime? @db.Date
+
+  memberships   Membership[]
+  payments      Payment[]
+  accessEvents  AccessEvent[]
+  credentials   MemberCredential[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, cpf])
+  @@unique([organizationId, accessCode])
+  @@index([organizationId, memberStatus])
+  @@index([organizationId, name])
+  @@index([organizationId, planExpiresAt])
+}
+
+/// Plano vendido pela academia (Mensal, Trimestral...).
+model MembershipPlan {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name           String
+  description    String?
+  price          Decimal @db.Decimal(10, 2)
+  durationMonths Int     @default(1)
+  durationDays   Int     @default(0)
+  active         Boolean @default(true)
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+}
+
+/// Matrícula: um período de plano de um aluno.
+model Membership {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  planId         String?
+  plan           MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  createdById    String?
+  createdBy      User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Cópia do nome/preço do plano no momento da matrícula
+  planName  String
+  price     Decimal          @db.Decimal(10, 2)
+  startDate DateTime         @db.Date
+  endDate   DateTime         @db.Date
+  status    MembershipStatus @default(ACTIVE)
+  notes     String?
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, endDate])
+  @@index([memberId, endDate])
+}
+
+/// Mensalidade / pagamento de um aluno.
+model Payment {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  membershipId   String?
+  membership     Membership?  @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  receivedById   String?
+  receivedBy     User?        @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+
+  amount  Decimal        @db.Decimal(10, 2)
+  dueDate DateTime       @db.Date
+  status  PaymentStatus  @default(PENDING)
+  method  PaymentMethod?
+  paidAt  DateTime?
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, status, dueDate])
+  @@index([memberId, dueDate])
+}
+
+/// Equipamento de acesso (catraca Topdata Inner, leitor biométrico...). O agente local se autentica com a chave.
+model AccessDevice {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name       String
+  model      String?
+  ipAddress  String?
+  /// Hash (SHA-256) da chave usada pelo agente local. A chave em si nunca é guardada.
+  apiKeyHash String?   @unique
+  active     Boolean   @default(true)
+  lastSeenAt DateTime?
+
+  accessEvents AccessEvent[]
+  credentials  MemberCredential[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+/// Credencial de acesso do aluno: digital (biometria), cartão/chaveiro ou senha extra.
+model MemberCredential {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  deviceId       String?
+  device         AccessDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  type         CredentialType
+  /// Número do cartão, ou identificador da digital no equipamento
+  identifier   String?
+  /// ID do usuário cadastrado dentro do equipamento (ex.: posição na memória do leitor)
+  deviceUserId String?
+  /// Template biométrico (base64), quando o leitor permite exportar
+  template     String?
+  /// Qual dedo (ex.: "indicador direito")
+  label        String?
+  active       Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, type, identifier])
+  @@index([memberId])
+  @@index([deviceId, deviceUserId])
+}
+
+/// Passagem/presença: check-in manual da recepção ou evento da catraca.
+model AccessEvent {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String?
+  member         Member?       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  deviceId       String?
+  device         AccessDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   userId         String?
-  user           User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  checkedInAt DateTime @default(now())
-  createdAt   DateTime @default(now())
+  method     AccessMethod
+  direction  AccessDirection @default(IN)
+  result     AccessResult    @default(GRANTED)
+  /// Motivo da negação ou observação (ex.: "Plano vencido", "Senha inválida")
+  reason     String?
+  occurredAt DateTime        @default(now())
 
-  @@index([organizationId, checkedInAt])
-  @@index([clientId, checkedInAt])
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, occurredAt])
+  @@index([memberId, occurredAt])
 }
 
 model Notification {
-  id             String @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  clientId       String?
-  client         Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  memberId       String?
+  member         Member?      @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
-  type     NotificationType
-  title    String
-  message  String
+  type      NotificationType
+  title     String
+  message   String
   // Chave para idempotência (o job pode rodar várias vezes sem duplicar avisos)
   dedupeKey String
   readAt    DateTime?

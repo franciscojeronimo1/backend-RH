@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { GymError } from '../../services/gym/GymError';
 import { GymSettingsService } from '../../services/gym/GymSettingsService';
@@ -6,10 +7,12 @@ import { GymMembersService, type MemberFilter } from '../../services/gym/GymMemb
 import { GymCheckInService } from '../../services/gym/GymCheckInService';
 import { GymNotificationService } from '../../services/gym/GymNotificationService';
 import { GymEvaluationService } from '../../services/gym/GymEvaluationService';
+import { GymMembershipService } from '../../services/gym/GymMembershipService';
+import { GymPlansService } from '../../services/gym/GymPlansService';
 
 type Handler = (req: Request, res: Response, orgId: string) => Promise<unknown>;
 
-const MEMBER_FILTERS: MemberFilter[] = ['ALL', 'ACTIVE', 'AT_RISK', 'INACTIVE', 'PLAN_EXPIRING', 'PLAN_EXPIRED'];
+const MEMBER_FILTERS: MemberFilter[] = ['ALL', 'ACTIVE', 'AT_RISK', 'INACTIVE', 'PLAN_EXPIRING', 'PLAN_EXPIRED', 'NO_PLAN'];
 
 /** Garante organização e converte GymError em resposta HTTP com o status certo. */
 function gym(fn: Handler) {
@@ -45,9 +48,6 @@ export const gymController = {
 
     evaluateNow: gym(async (_req, res, orgId) => {
         const summary = await new GymEvaluationService().evaluateOrganization(orgId);
-        if (summary.skipped === 'DISABLED') {
-            throw new GymError('Ative o módulo Academia nas configurações primeiro.', 400, 'GYM_DISABLED');
-        }
         return res.json({ message: 'Análise concluída', summary });
     }),
 
@@ -63,6 +63,58 @@ export const gymController = {
             })
         );
     }),
+
+    createMember: gym(async (req, res, orgId) => {
+        const { planId, startDate, ...data } = req.body;
+        const memberships = new GymMembershipService();
+        if (planId) await memberships.assertPlan(orgId, planId);
+        const created = await new GymMembersService().create(orgId, data);
+        if (planId) {
+            const result = await memberships.create(orgId, created.id, { planId, startDate }, req.user?.id);
+            return res.status(201).json({ message: 'Aluno cadastrado', member: result.member });
+        }
+        return res.status(201).json({ message: 'Aluno cadastrado', member: created });
+    }),
+
+    deleteMember: gym(async (req, res, orgId) => res.json(await new GymMembersService().remove(orgId, String(req.params.id)))),
+
+    listMemberships: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().list(orgId, String(req.params.id)))
+    ),
+
+    createMembership: gym(async (req, res, orgId) =>
+        res
+            .status(201)
+            .json(await new GymMembershipService().create(orgId, String(req.params.id), req.body, req.user?.id))
+    ),
+
+    cancelMembership: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().cancel(orgId, String(req.params.membershipId)))
+    ),
+
+    listMemberPayments: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().listPayments(orgId, String(req.params.id)))
+    ),
+
+    payPayment: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().pay(orgId, String(req.params.paymentId), req.body, req.user?.id))
+    ),
+
+    cancelPayment: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().cancelPayment(orgId, String(req.params.paymentId)))
+    ),
+
+    listPlans: gym(async (req, res, orgId) =>
+        res.json(await new GymPlansService().list(orgId, req.query.active === 'true'))
+    ),
+
+    createPlan: gym(async (req, res, orgId) =>
+        res.status(201).json({ message: 'Plano criado', plan: await new GymPlansService().create(orgId, req.body) })
+    ),
+
+    updatePlan: gym(async (req, res, orgId) =>
+        res.json({ message: 'Plano atualizado', plan: await new GymPlansService().update(orgId, String(req.params.planId), req.body) })
+    ),
 
     getMember: gym(async (req, res, orgId) => res.json(await new GymMembersService().get(orgId, String(req.params.id)))),
 
@@ -88,7 +140,7 @@ export const gymController = {
     ),
 
     createCheckIn: gym(async (req, res, orgId) => {
-        const result = await new GymCheckInService().register(orgId, req.body.clientId, req.user?.id);
+        const result = await new GymCheckInService().register(orgId, req.body.memberId, req.user?.id);
         return res.status(result.alreadyCheckedIn ? 200 : 201).json(result);
     }),
 
@@ -134,7 +186,9 @@ export async function gymCronHandler(req: Request, res: Response) {
     if (!secret) {
         return res.status(503).json({ error: 'CRON_SECRET não configurado no servidor' });
     }
-    if (req.headers.authorization !== `Bearer ${secret}`) {
+    const expected = Buffer.from(`Bearer ${secret}`);
+    const given = Buffer.from(String(req.headers.authorization ?? ''));
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
         return res.status(401).json({ error: 'Não autorizado' });
     }
     const results = await new GymEvaluationService().evaluateAll();

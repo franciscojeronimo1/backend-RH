@@ -21,6 +21,7 @@ export const tenantMiddleware = async (
             select: {
                 id: true,
                 organizationId: true,
+                organization: { select: { businessType: true, billingExempt: true } },
             },
         });
 
@@ -36,6 +37,8 @@ export const tenantMiddleware = async (
 
         // Adicionar organizationId ao request
         req.user.organizationId = user.organizationId;
+        req.user.businessType = user.organization?.businessType ?? 'STANDARD';
+        req.user.billingExempt = user.organization?.billingExempt ?? false;
 
         return next();
     } catch (error) {

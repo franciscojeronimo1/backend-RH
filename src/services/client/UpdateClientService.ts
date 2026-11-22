@@ -51,27 +51,7 @@ class UpdateClientService {
         if (data.zipCode !== undefined) updateData.zipCode = data.zipCode;
         if (data.addressReference !== undefined) updateData.addressReference = data.addressReference;
         if (data.notes !== undefined) updateData.notes = data.notes;
-        if (data.active !== undefined) {
-            updateData.active = data.active;
-            // Mantém o status de aluno (módulo Academia) coerente com o ativo/inativo do cadastro
-            const now = new Date();
-            if (data.active === false && existing.active) {
-                Object.assign(updateData, {
-                    memberStatus: 'INACTIVE',
-                    statusChangedAt: now,
-                    deactivatedAt: now,
-                    deactivationReason: 'MANUAL',
-                });
-            } else if (data.active === true && (!existing.active || existing.memberStatus === 'INACTIVE')) {
-                Object.assign(updateData, {
-                    memberStatus: 'ACTIVE',
-                    statusChangedAt: now,
-                    activeSince: now,
-                    deactivatedAt: null,
-                    deactivationReason: null,
-                });
-            }
-        }
+        if (data.active !== undefined) updateData.active = data.active;
 
         const client = await prismaClient.client.update({
             where: { id },

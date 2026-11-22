@@ -44,11 +44,6 @@ class CreateClientService {
                 addressReference: data.addressReference ?? null,
                 notes: data.notes ?? null,
                 active: data.active ?? true,
-                // Módulo Academia: contagem de ausência começa no cadastro
-                activeSince: new Date(),
-                ...(data.active === false
-                    ? { memberStatus: 'INACTIVE' as const, deactivatedAt: new Date(), deactivationReason: 'MANUAL' as const }
-                    : {}),
             },
         });
 
