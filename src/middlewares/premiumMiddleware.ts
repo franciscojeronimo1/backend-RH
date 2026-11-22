@@ -21,6 +21,11 @@ export const premiumMiddleware = async (
             });
         }
 
+        // Assinatura controlada manualmente pelo dono do sistema (ex.: academia): libera tudo
+        if (req.user?.billingExempt) {
+            return next();
+        }
+
         const subscription = await prismaClient.subscription.findUnique({
             where: { organizationId },
         });

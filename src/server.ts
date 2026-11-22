@@ -7,6 +7,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { optionalAuthMiddleware } from './middlewares/authMiddleware';
 import { generalLimiter } from './middlewares/rateLimiter';
 import { StripeWebhookController } from './controllers/subscription/StripeWebhookController';
+import { startGymScheduler } from './jobs/gymScheduler';
 
 const app = express();
 
@@ -40,6 +41,8 @@ const PORT = process.env.PORT || 3333;
 
 const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  // Rotina automática de alunos (academia): diária + uma vez ao subir. Idempotente.
+  startGymScheduler();
 });
 
 // Timeout de requisição: 60s (evita que o cliente desista antes do backend responder em cold start do Neon)

@@ -68,6 +68,18 @@ import { createClientSchema, updateClientSchema } from './schemas/clientSchema';
 import { createBookletSchema, updateBookletParcelSchema } from './schemas/bookletSchema';
 import { createStockEntrySchema, createStockEntriesBatchSchema, createStockExitSchema, createStockExitsBatchSchema, updateStockEntrySchema, updateStockExitSchema, createOrganizationSchema } from './schemas/stockSchema';
 import { updateOrganizationSchema } from './schemas/organizationSchema';
+import {
+    updateGymSettingsSchema,
+    createGymMemberSchema,
+    updateGymMemberSchema,
+    createCheckInSchema,
+    createMembershipSchema,
+    payPaymentSchema,
+    createMembershipPlanSchema,
+    updateMembershipPlanSchema,
+} from './schemas/gymSchema';
+import { gymController, gymCronHandler } from './controllers/gym/GymController';
+import { requireGym, requireStandard, blockIfBillingExempt } from './middlewares/businessTypeMiddleware';
 
 const router = Router();
 
@@ -91,32 +103,72 @@ router.put("/organizations", authMiddleware, tenantMiddleware, validateSchema(up
 
 // Assinatura - área de pagamento (FREE acessa para ver plano e fazer upgrade)
 router.get("/subscription", authMiddleware, tenantMiddleware, asyncHandler(new GetSubscriptionController().handle));
-router.get("/subscription/test", asyncHandler(new TestStripeController().handle));
-router.post("/subscription/checkout", authMiddleware, tenantMiddleware, asyncHandler(new CreateCheckoutController().handle));
-router.post("/subscription/portal", authMiddleware, tenantMiddleware, asyncHandler(new CreatePortalSessionController().handle));
+router.get("/subscription/test", authMiddleware, tenantMiddleware, roleMiddleware(['ADMIN']), asyncHandler(new TestStripeController().handle));
+router.post("/subscription/checkout", authMiddleware, tenantMiddleware, blockIfBillingExempt, asyncHandler(new CreateCheckoutController().handle));
+router.post("/subscription/portal", authMiddleware, tenantMiddleware, blockIfBillingExempt, asyncHandler(new CreatePortalSessionController().handle));
 
 // Rotas públicas de criação
 router.post("/organizations", authMiddleware, validateSchema(createOrganizationSchema), asyncHandler(new CreateOrganizationController().handle));
 
 // Clientes (FREE — núcleo ISP; ADMIN e STAFF autenticados)
-router.get("/clients", authMiddleware, tenantMiddleware, asyncHandler(new ListClientsController().handle));
-router.get("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new GetClientByIdController().handle));
-router.post("/clients", authMiddleware, tenantMiddleware, validateSchema(createClientSchema), asyncHandler(new CreateClientController().handle));
-router.put("/clients/:id", authMiddleware, tenantMiddleware, validateSchema(updateClientSchema), asyncHandler(new UpdateClientController().handle));
-router.delete("/clients/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteClientController().handle));
+router.get("/clients", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new ListClientsController().handle));
+router.get("/clients/:id", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new GetClientByIdController().handle));
+router.post("/clients", authMiddleware, tenantMiddleware, requireStandard, validateSchema(createClientSchema), asyncHandler(new CreateClientController().handle));
+router.put("/clients/:id", authMiddleware, tenantMiddleware, requireStandard, validateSchema(updateClientSchema), asyncHandler(new UpdateClientController().handle));
+router.delete("/clients/:id", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new DeleteClientController().handle));
 
 // Carnês (FREE — ligado ao cliente ISP)
-router.get("/booklets", authMiddleware, tenantMiddleware, asyncHandler(new ListBookletsController().handle));
-router.get("/booklets/:id", authMiddleware, tenantMiddleware, asyncHandler(new GetBookletByIdController().handle));
-router.post("/booklets", authMiddleware, tenantMiddleware, validateSchema(createBookletSchema), asyncHandler(new CreateBookletController().handle));
-router.delete("/booklets/:id", authMiddleware, tenantMiddleware, asyncHandler(new DeleteBookletController().handle));
+router.get("/booklets", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new ListBookletsController().handle));
+router.get("/booklets/:id", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new GetBookletByIdController().handle));
+router.post("/booklets", authMiddleware, tenantMiddleware, requireStandard, validateSchema(createBookletSchema), asyncHandler(new CreateBookletController().handle));
+router.delete("/booklets/:id", authMiddleware, tenantMiddleware, requireStandard, asyncHandler(new DeleteBookletController().handle));
 router.put(
     "/booklets/:id/parcels/:parcelId",
     authMiddleware,
     tenantMiddleware,
+    requireStandard,
     validateSchema(updateBookletParcelSchema),
     asyncHandler(new UpdateBookletParcelController().handle)
 );
+
+// ========== Academia (somente organizações businessType = GYM) ==========
+// Cron externo (serverless): Authorization: Bearer <CRON_SECRET>
+router.get("/gym/cron", asyncHandler(gymCronHandler));
+const gymAuth = [authMiddleware, tenantMiddleware, requireGym] as const;
+const gymAdmin = [...gymAuth, roleMiddleware(['ADMIN'])] as const;
+// Regras automáticas
+router.get("/gym/settings", ...gymAuth, gymController.getSettings);
+router.put("/gym/settings", ...gymAdmin, validateSchema(updateGymSettingsSchema), gymController.updateSettings);
+router.post("/gym/evaluate", ...gymAdmin, gymController.evaluateNow);
+router.get("/gym/dashboard", ...gymAuth, gymController.dashboard);
+// Alunos
+router.get("/gym/members", ...gymAuth, gymController.listMembers);
+router.post("/gym/members", ...gymAuth, validateSchema(createGymMemberSchema), gymController.createMember);
+router.get("/gym/members/:id", ...gymAuth, gymController.getMember);
+router.patch("/gym/members/:id", ...gymAuth, validateSchema(updateGymMemberSchema), gymController.updateMember);
+router.delete("/gym/members/:id", ...gymAdmin, gymController.deleteMember);
+router.post("/gym/members/:id/deactivate", ...gymAdmin, gymController.deactivateMember);
+router.post("/gym/members/:id/reactivate", ...gymAuth, gymController.reactivateMember);
+// Matrículas e pagamentos do aluno
+router.get("/gym/members/:id/memberships", ...gymAuth, gymController.listMemberships);
+router.post("/gym/members/:id/memberships", ...gymAuth, validateSchema(createMembershipSchema), gymController.createMembership);
+router.post("/gym/memberships/:membershipId/cancel", ...gymAdmin, gymController.cancelMembership);
+router.get("/gym/members/:id/payments", ...gymAuth, gymController.listMemberPayments);
+router.post("/gym/payments/:paymentId/pay", ...gymAuth, validateSchema(payPaymentSchema), gymController.payPayment);
+router.post("/gym/payments/:paymentId/cancel", ...gymAdmin, gymController.cancelPayment);
+// Planos da academia
+router.get("/gym/plans", ...gymAuth, gymController.listPlans);
+router.post("/gym/plans", ...gymAdmin, validateSchema(createMembershipPlanSchema), gymController.createPlan);
+router.put("/gym/plans/:planId", ...gymAdmin, validateSchema(updateMembershipPlanSchema), gymController.updatePlan);
+// Presenças (check-in manual / eventos da catraca)
+router.post("/gym/checkins", ...gymAuth, validateSchema(createCheckInSchema), gymController.createCheckIn);
+router.get("/gym/checkins", ...gymAuth, gymController.listCheckIns);
+router.delete("/gym/checkins/:id", ...gymAuth, gymController.deleteCheckIn);
+// Avisos
+router.get("/gym/notifications", ...gymAuth, gymController.listNotifications);
+router.get("/gym/notifications/unread-count", ...gymAuth, gymController.unreadCount);
+router.post("/gym/notifications/read-all", ...gymAuth, gymController.markAllNotificationsRead);
+router.post("/gym/notifications/:id/read", ...gymAuth, gymController.markNotificationRead);
 
 // ========== Rotas PREMIUM (exigem plano premium) ==========
 // Usuários - criar staff e deletar (PREMIUM)
@@ -124,47 +176,47 @@ router.post("/users/staff", authMiddleware, tenantMiddleware, premiumMiddleware,
 router.delete("/users/:id", authMiddleware, tenantMiddleware, premiumMiddleware, roleMiddleware(['ADMIN']), asyncHandler(new DeleteUserController().handle));
 
 // Sistema de Ponto (PREMIUM)
-router.post("/time-records/start", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new StartTimeRecordController().handle));
-router.post("/time-records/stop", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new StopTimeRecordController().handle));
-router.get("/time-records", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListTimeRecordsController().handle));
-router.get("/time-records/summary", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetSummaryController().handle));
+router.post("/time-records/start", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new StartTimeRecordController().handle));
+router.post("/time-records/stop", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new StopTimeRecordController().handle));
+router.get("/time-records", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListTimeRecordsController().handle));
+router.get("/time-records/summary", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new GetSummaryController().handle));
 
 // Categorias (PREMIUM)
-router.get("/categories", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListCategoriesController().handle));
-router.post("/categories", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createCategorySchema), asyncHandler(new CreateCategoryController().handle));
-router.put("/categories/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateCategorySchema), asyncHandler(new UpdateCategoryController().handle));
-router.delete("/categories/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteCategoryController().handle));
+router.get("/categories", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListCategoriesController().handle));
+router.post("/categories", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createCategorySchema), asyncHandler(new CreateCategoryController().handle));
+router.put("/categories/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(updateCategorySchema), asyncHandler(new UpdateCategoryController().handle));
+router.delete("/categories/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new DeleteCategoryController().handle));
 
 // Produtos (PREMIUM)
-router.post("/products", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));
-router.post("/products/import", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(importProductsSchema), asyncHandler(new ImportProductsController().handle));
-router.get("/products", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListProductsController().handle));
-router.get("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetProductByIdController().handle));
-router.put("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateProductSchema), asyncHandler(new UpdateProductController().handle));
-router.delete("/products/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteProductController().handle));
+router.post("/products", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createProductSchema), asyncHandler(new CreateProductController().handle));
+router.post("/products/import", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(importProductsSchema), asyncHandler(new ImportProductsController().handle));
+router.get("/products", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListProductsController().handle));
+router.get("/products/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new GetProductByIdController().handle));
+router.put("/products/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(updateProductSchema), asyncHandler(new UpdateProductController().handle));
+router.delete("/products/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new DeleteProductController().handle));
 
 // Estoque (PREMIUM)
-router.post("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
-router.post("/stock/entries/batch", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockEntriesBatchSchema), asyncHandler(new CreateStockEntriesBatchController().handle));
-router.put("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockEntrySchema), asyncHandler(new UpdateStockEntryController().handle));
-router.delete("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteStockEntryController().handle));
-router.get("/stock/entries", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
-router.get("/stock/entries/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetStockEntryByIdController().handle));
-router.post("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
-router.post("/stock/exits/batch", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(createStockExitsBatchSchema), asyncHandler(new CreateStockExitsBatchController().handle));
-router.put("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, validateSchema(updateStockExitSchema), asyncHandler(new UpdateStockExitController().handle));
-router.delete("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new DeleteStockExitController().handle));
-router.get("/stock/exits", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
-router.get("/stock/exits/:id", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new GetStockExitByIdController().handle));
-router.get("/stock/movements", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(new ListStockMovementsController().handle));
+router.post("/stock/entries", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createStockEntrySchema), asyncHandler(new CreateStockEntryController().handle));
+router.post("/stock/entries/batch", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createStockEntriesBatchSchema), asyncHandler(new CreateStockEntriesBatchController().handle));
+router.put("/stock/entries/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(updateStockEntrySchema), asyncHandler(new UpdateStockEntryController().handle));
+router.delete("/stock/entries/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new DeleteStockEntryController().handle));
+router.get("/stock/entries", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListStockEntriesController().handle));
+router.get("/stock/entries/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new GetStockEntryByIdController().handle));
+router.post("/stock/exits", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createStockExitSchema), asyncHandler(new CreateStockExitController().handle));
+router.post("/stock/exits/batch", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(createStockExitsBatchSchema), asyncHandler(new CreateStockExitsBatchController().handle));
+router.put("/stock/exits/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, validateSchema(updateStockExitSchema), asyncHandler(new UpdateStockExitController().handle));
+router.delete("/stock/exits/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new DeleteStockExitController().handle));
+router.get("/stock/exits", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListStockExitsController().handle));
+router.get("/stock/exits/:id", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new GetStockExitByIdController().handle));
+router.get("/stock/movements", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(new ListStockMovementsController().handle));
 
 // Relatórios de Estoque (PREMIUM)
 const stockReportController = new StockReportController();
-router.get("/stock/current", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getCurrentStock.bind(stockReportController)));
-router.get("/stock/low-stock", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getLowStock.bind(stockReportController)));
-router.get("/stock/expiring", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getExpiring.bind(stockReportController)));
-router.get("/stock/daily-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getDailyUsage.bind(stockReportController)));
-router.get("/stock/weekly-usage", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getWeeklyUsage.bind(stockReportController)));
-router.get("/stock/total-value", authMiddleware, tenantMiddleware, premiumMiddleware, asyncHandler(stockReportController.getTotalValue.bind(stockReportController)));
+router.get("/stock/current", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getCurrentStock.bind(stockReportController)));
+router.get("/stock/low-stock", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getLowStock.bind(stockReportController)));
+router.get("/stock/expiring", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getExpiring.bind(stockReportController)));
+router.get("/stock/daily-usage", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getDailyUsage.bind(stockReportController)));
+router.get("/stock/weekly-usage", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getWeeklyUsage.bind(stockReportController)));
+router.get("/stock/total-value", authMiddleware, tenantMiddleware, requireStandard, premiumMiddleware, asyncHandler(stockReportController.getTotalValue.bind(stockReportController)));
 
 export {router};

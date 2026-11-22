@@ -1,0 +1,196 @@
+import { timingSafeEqual } from 'crypto';
+import { Request, Response, NextFunction } from 'express';
+import { GymError } from '../../services/gym/GymError';
+import { GymSettingsService } from '../../services/gym/GymSettingsService';
+import { GymDashboardService } from '../../services/gym/GymDashboardService';
+import { GymMembersService, type MemberFilter } from '../../services/gym/GymMembersService';
+import { GymCheckInService } from '../../services/gym/GymCheckInService';
+import { GymNotificationService } from '../../services/gym/GymNotificationService';
+import { GymEvaluationService } from '../../services/gym/GymEvaluationService';
+import { GymMembershipService } from '../../services/gym/GymMembershipService';
+import { GymPlansService } from '../../services/gym/GymPlansService';
+
+type Handler = (req: Request, res: Response, orgId: string) => Promise<unknown>;
+
+const MEMBER_FILTERS: MemberFilter[] = ['ALL', 'ACTIVE', 'AT_RISK', 'INACTIVE', 'PLAN_EXPIRING', 'PLAN_EXPIRED', 'NO_PLAN'];
+
+/** Garante organização e converte GymError em resposta HTTP com o status certo. */
+function gym(fn: Handler) {
+    return async (req: Request, res: Response, next: NextFunction) => {
+        const orgId = req.user?.organizationId;
+        if (!req.user || !orgId) {
+            return res.status(401).json({ error: 'Usuário não autenticado ou sem organização' });
+        }
+        try {
+            return await fn(req, res, orgId);
+        } catch (error) {
+            if (error instanceof GymError) {
+                return res.status(error.status).json({ error: error.message, message: error.message, code: error.code });
+            }
+            return next(error);
+        }
+    };
+}
+
+const num = (v: unknown) => (v !== undefined && v !== '' ? parseInt(String(v), 10) || undefined : undefined);
+
+export const gymController = {
+    getSettings: gym(async (_req, res, orgId) => res.json({ settings: await new GymSettingsService().get(orgId) })),
+
+    updateSettings: gym(async (req, res, orgId) =>
+        res.json({
+            message: 'Configurações salvas',
+            settings: await new GymSettingsService().update(orgId, req.body),
+        })
+    ),
+
+    dashboard: gym(async (_req, res, orgId) => res.json(await new GymDashboardService().execute(orgId))),
+
+    evaluateNow: gym(async (_req, res, orgId) => {
+        const summary = await new GymEvaluationService().evaluateOrganization(orgId);
+        return res.json({ message: 'Análise concluída', summary });
+    }),
+
+    listMembers: gym(async (req, res, orgId) => {
+        const filterRaw = String(req.query.status ?? 'ALL').toUpperCase() as MemberFilter;
+        const filter = MEMBER_FILTERS.includes(filterRaw) ? filterRaw : 'ALL';
+        return res.json(
+            await new GymMembersService().list(orgId, {
+                filter,
+                search: typeof req.query.search === 'string' ? req.query.search : undefined,
+                page: num(req.query.page),
+                limit: num(req.query.limit),
+            })
+        );
+    }),
+
+    createMember: gym(async (req, res, orgId) => {
+        const { planId, startDate, ...data } = req.body;
+        const memberships = new GymMembershipService();
+        if (planId) await memberships.assertPlan(orgId, planId);
+        const created = await new GymMembersService().create(orgId, data);
+        if (planId) {
+            const result = await memberships.create(orgId, created.id, { planId, startDate }, req.user?.id);
+            return res.status(201).json({ message: 'Aluno cadastrado', member: result.member });
+        }
+        return res.status(201).json({ message: 'Aluno cadastrado', member: created });
+    }),
+
+    deleteMember: gym(async (req, res, orgId) => res.json(await new GymMembersService().remove(orgId, String(req.params.id)))),
+
+    listMemberships: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().list(orgId, String(req.params.id)))
+    ),
+
+    createMembership: gym(async (req, res, orgId) =>
+        res
+            .status(201)
+            .json(await new GymMembershipService().create(orgId, String(req.params.id), req.body, req.user?.id))
+    ),
+
+    cancelMembership: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().cancel(orgId, String(req.params.membershipId)))
+    ),
+
+    listMemberPayments: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().listPayments(orgId, String(req.params.id)))
+    ),
+
+    payPayment: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().pay(orgId, String(req.params.paymentId), req.body, req.user?.id))
+    ),
+
+    cancelPayment: gym(async (req, res, orgId) =>
+        res.json(await new GymMembershipService().cancelPayment(orgId, String(req.params.paymentId)))
+    ),
+
+    listPlans: gym(async (req, res, orgId) =>
+        res.json(await new GymPlansService().list(orgId, req.query.active === 'true'))
+    ),
+
+    createPlan: gym(async (req, res, orgId) =>
+        res.status(201).json({ message: 'Plano criado', plan: await new GymPlansService().create(orgId, req.body) })
+    ),
+
+    updatePlan: gym(async (req, res, orgId) =>
+        res.json({ message: 'Plano atualizado', plan: await new GymPlansService().update(orgId, String(req.params.planId), req.body) })
+    ),
+
+    getMember: gym(async (req, res, orgId) => res.json(await new GymMembersService().get(orgId, String(req.params.id)))),
+
+    updateMember: gym(async (req, res, orgId) =>
+        res.json({
+            message: 'Aluno atualizado',
+            member: await new GymMembersService().update(orgId, String(req.params.id), req.body),
+        })
+    ),
+
+    deactivateMember: gym(async (req, res, orgId) =>
+        res.json({
+            message: 'Aluno desativado',
+            member: await new GymMembersService().deactivate(orgId, String(req.params.id)),
+        })
+    ),
+
+    reactivateMember: gym(async (req, res, orgId) =>
+        res.json({
+            message: 'Aluno reativado',
+            member: await new GymMembersService().reactivate(orgId, String(req.params.id), req.user?.role === 'ADMIN'),
+        })
+    ),
+
+    createCheckIn: gym(async (req, res, orgId) => {
+        const result = await new GymCheckInService().register(orgId, req.body.memberId, req.user?.id);
+        return res.status(result.alreadyCheckedIn ? 200 : 201).json(result);
+    }),
+
+    listCheckIns: gym(async (req, res, orgId) =>
+        res.json(
+            await new GymCheckInService().list(orgId, typeof req.query.date === 'string' ? req.query.date : undefined)
+        )
+    ),
+
+    deleteCheckIn: gym(async (req, res, orgId) =>
+        res.json(await new GymCheckInService().remove(orgId, String(req.params.id)))
+    ),
+
+    listNotifications: gym(async (req, res, orgId) =>
+        res.json(
+            await new GymNotificationService().list(orgId, {
+                unreadOnly: req.query.unreadOnly === 'true',
+                page: num(req.query.page),
+                limit: num(req.query.limit),
+            })
+        )
+    ),
+
+    unreadCount: gym(async (_req, res, orgId) =>
+        res.json({ unreadCount: await new GymNotificationService().unreadCount(orgId) })
+    ),
+
+    markNotificationRead: gym(async (req, res, orgId) =>
+        res.json(await new GymNotificationService().markRead(orgId, String(req.params.id)))
+    ),
+
+    markAllNotificationsRead: gym(async (_req, res, orgId) =>
+        res.json(await new GymNotificationService().markAllRead(orgId))
+    ),
+};
+
+/**
+ * Endpoint para cron externo (ex.: Vercel Cron, cron-job.org) quando o backend roda em serverless.
+ * Exige header Authorization: Bearer <CRON_SECRET>.
+ */
+export async function gymCronHandler(req: Request, res: Response) {
+    const secret = process.env.CRON_SECRET;
+    if (!secret) {
+        return res.status(503).json({ error: 'CRON_SECRET não configurado no servidor' });
+    }
+    const expected = Buffer.from(`Bearer ${secret}`);
+    const given = Buffer.from(String(req.headers.authorization ?? ''));
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
+        return res.status(401).json({ error: 'Não autorizado' });
+    }
+    const results = await new GymEvaluationService().evaluateAll();
+    return res.json({ message: 'Rotina de alunos executada', organizations: results.length, results });
+}
