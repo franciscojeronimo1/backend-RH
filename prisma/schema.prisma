@@ -503,7 +503,7 @@ model Membership {
   organizationId String
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberId       String
-  member         Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member         Member          @relation(fields: [memberId], references: [id], onDelete: NoAction)
   planId         String?
   plan           MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   createdById    String?
@@ -532,7 +532,7 @@ model Payment {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberId       String
-  member         Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member         Member       @relation(fields: [memberId], references: [id], onDelete: NoAction)
   membershipId   String?
   membership     Membership?  @relation(fields: [membershipId], references: [id], onDelete: SetNull)
   receivedById   String?
@@ -581,7 +581,7 @@ model MemberCredential {
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberId       String
-  member         Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member         Member        @relation(fields: [memberId], references: [id], onDelete: NoAction)
   deviceId       String?
   device         AccessDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
 
@@ -610,7 +610,7 @@ model AccessEvent {
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberId       String?
-  member         Member?       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member         Member?       @relation(fields: [memberId], references: [id], onDelete: NoAction)
   deviceId       String?
   device         AccessDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   userId         String?
@@ -634,7 +634,7 @@ model Notification {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   memberId       String?
-  member         Member?      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member         Member?      @relation(fields: [memberId], references: [id], onDelete: NoAction)
 
   type      NotificationType
   title     String

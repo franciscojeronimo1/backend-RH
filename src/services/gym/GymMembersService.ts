@@ -234,10 +234,17 @@ class GymMembersService {
         }
     }
 
+    /**
+     * "Excluir" aluno não apaga nada: só desativa (soft delete), preservando
+     * matrículas, mensalidades, acessos e avisos. Pode ser reativado depois.
+     */
     async remove(organizationId: string, id: string) {
-        await this.findOrFail(organizationId, id);
-        await prismaClient.member.delete({ where: { id } });
-        return { message: 'Aluno excluído' };
+        const current = await this.findOrFail(organizationId, id);
+        if (current.memberStatus === 'INACTIVE' && current.deactivationReason === 'MANUAL') {
+            return { message: 'Aluno já estava desativado' };
+        }
+        await this.deactivate(organizationId, id);
+        return { message: 'Aluno desativado (histórico preservado)' };
     }
 
     async deactivate(organizationId: string, id: string) {

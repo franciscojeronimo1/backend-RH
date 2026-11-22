@@ -3,7 +3,8 @@
 ## Tipo de empresa (`Organization.businessType`)
 - `STANDARD` (padrão): sistema atual (clientes, carnês, ponto, estoque). Rotas `/gym/*` respondem 403.
 - `GYM`: somente o módulo Academia. Rotas de clientes, carnês, ponto, categorias, produtos e estoque respondem 403
-  (`code: BUSINESS_TYPE_NOT_ALLOWED`). Usuários, organização e assinatura continuam disponíveis.
+  (`code: BUSINESS_TYPE_NOT_ALLOWED`). Usuários, organização e assinatura continuam disponíveis na API
+  (login/perfil), mas o front não mostra a tela de Administração para academias.
 - Não há tela para trocar o tipo: é marcado direto no banco.
 
 ## Cobrança manual (`Organization.billingExempt`)
@@ -29,6 +30,9 @@ UPDATE "Organization" SET "businessType" = 'GYM', "billingExempt" = true WHERE i
 - `AccessDevice`: catraca / leitor biométrico; o agente local vai se autenticar com uma chave (só o hash é salvo).
 - `MemberCredential`: digital (template/ID no leitor), cartão ou senha extra do aluno.
 - `GymSettings` e `Notification`: regras automáticas e avisos.
+- Aluno nunca é apagado: `DELETE /gym/members/:id` só desativa (`INACTIVE`, motivo `MANUAL`) e preserva o
+  histórico. No banco, as FKs de matrículas, mensalidades, acessos, credenciais e avisos para `Member` são
+  `NO ACTION` (sem cascade), então um `DELETE` direto em `Member` com histórico falha.
 
 ## Regras automáticas
 - 7 dias sem presença: "em risco" + aviso. 30 dias: desativa + aviso. Presença reativa (exceto desativado manual).
