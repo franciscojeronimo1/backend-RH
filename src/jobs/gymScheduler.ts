@@ -39,6 +39,11 @@ export function startGymScheduler() {
         console.log('[academia] Agendador desativado por GYM_SCHEDULER_DISABLED=true');
         return;
     }
+    // Na Vercel (serverless) o processo não fica ligado: quem roda a rotina é o Vercel Cron (vercel.json → /gym/cron).
+    if (process.env.VERCEL) {
+        console.log('[academia] Agendador interno desligado na Vercel (rotina via Vercel Cron)');
+        return;
+    }
     cron.schedule('0 6,18 * * *', () => void run('agendada'), { timezone: APP_TIMEZONE });
     const t = setTimeout(() => void run('inicialização', STARTUP_MIN_INTERVAL_MS), STARTUP_DELAY_MS);
     t.unref();

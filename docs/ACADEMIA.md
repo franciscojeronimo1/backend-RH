@@ -52,8 +52,12 @@ UPDATE "Organization" SET "businessType" = 'GYM', "billingExempt" = true WHERE i
 ## Regras automáticas
 - 7 dias sem presença: "em risco" + aviso. 30 dias: desativa + aviso. Presença reativa (exceto desativado manual).
 - Plano vencendo / vencido: avisos; opcionalmente desativa após a carência.
-- Roda às 06:00 e 18:00 (node-cron, se o servidor ficar ligado), ao abrir o painel (se passou 6h) e por
-  `GET /gym/cron` com `Authorization: Bearer <CRON_SECRET>` (para cron externo em serverless).
+- Produção (Vercel): o **Vercel Cron** chama `GET /gym/cron` todo dia às 06:00 UTC (03:00 de Brasília; no plano Hobby
+  pode cair em qualquer minuto dessa hora), configurado em `vercel.json`. A Vercel envia `Authorization: Bearer <CRON_SECRET>`
+  sozinha quando a env `CRON_SECRET` existe. Sem a env o endpoint responde 503; header errado, 401.
+- Local/servidor sempre ligado: node-cron às 06:00 e 18:00 (Brasília) e uma vez ao subir. Desligado na Vercel
+  (`VERCEL` definido) ou com `GYM_SCHEDULER_DISABLED=true`.
+- Também roda ao abrir o painel (se passou 6h). Idempotente: avisos têm `dedupeKey` única, rodar 2x não duplica.
 
 ## Ainda não implementado
 - Agente local da catraca (C# x86 + EasyInner) e rotas de dispositivo; cadastro de digitais.

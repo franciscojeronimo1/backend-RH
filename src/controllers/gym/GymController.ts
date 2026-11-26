@@ -188,16 +188,35 @@ export const gymController = {
  * Endpoint para cron externo (ex.: Vercel Cron, cron-job.org) quando o backend roda em serverless.
  * Exige header Authorization: Bearer <CRON_SECRET>.
  */
+/**
+ * Rotina diária das academias. Chamado pelo Vercel Cron (vercel.json → GET /gym/cron, 06:00 UTC = 03:00 de Brasília),
+ * que envia sozinho "Authorization: Bearer <CRON_SECRET>". Idempotente: rodar de novo no mesmo dia não duplica avisos.
+ */
 export async function gymCronHandler(req: Request, res: Response) {
-    const secret = process.env.CRON_SECRET;
+    const secret = process.env.CRON_SECRET?.trim();
     if (!secret) {
         return res.status(503).json({ error: 'CRON_SECRET não configurado no servidor' });
     }
     const expected = Buffer.from(`Bearer ${secret}`);
-    const given = Buffer.from(String(req.headers.authorization ?? ''));
+    const given = Buffer.from(String(req.headers.authorization ?? '').trim());
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
         return res.status(401).json({ error: 'Não autorizado' });
     }
+    const startedAt = Date.now();
     const results = await new GymEvaluationService().evaluateAll();
-    return res.json({ message: 'Rotina de alunos executada', organizations: results.length, results });
+    const totals = results.reduce(
+        (t, r) => ({
+            evaluated: t.evaluated + r.evaluated,
+            becameAtRisk: t.becameAtRisk + r.becameAtRisk,
+            deactivated: t.deactivated + r.deactivated,
+            notificationsCreated: t.notificationsCreated + r.notificationsCreated,
+        }),
+        { evaluated: 0, becameAtRisk: 0, deactivated: 0, notificationsCreated: 0 }
+    );
+    const durationMs = Date.now() - startedAt;
+    console.log(
+        `[academia] Cron: ${results.length} academia(s), ${totals.evaluated} aluno(s) avaliados, ` +
+            `${totals.becameAtRisk} em risco, ${totals.deactivated} desativado(s), ${totals.notificationsCreated} aviso(s) em ${durationMs}ms`
+    );
+    return res.json({ message: 'Rotina de alunos executada', organizations: results.length, durationMs, totals, results });
 }
