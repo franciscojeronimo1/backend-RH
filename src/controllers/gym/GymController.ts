@@ -9,6 +9,7 @@ import { GymNotificationService } from '../../services/gym/GymNotificationServic
 import { GymEvaluationService } from '../../services/gym/GymEvaluationService';
 import { GymMembershipService } from '../../services/gym/GymMembershipService';
 import { GymPlansService } from '../../services/gym/GymPlansService';
+import { GymMemberImportService } from '../../services/gym/import/GymMemberImportService';
 
 type Handler = (req: Request, res: Response, orgId: string) => Promise<unknown>;
 
@@ -75,6 +76,12 @@ export const gymController = {
         }
         return res.status(201).json({ message: 'Aluno cadastrado', member: created });
     }),
+
+    previewImport: gym(async (req, res, orgId) => res.json(await new GymMemberImportService().preview(orgId, req.body))),
+
+    commitImport: gym(async (req, res, orgId) =>
+        res.json(await new GymMemberImportService().commit(orgId, req.body, req.user?.id))
+    ),
 
     deleteMember: gym(async (req, res, orgId) => res.json(await new GymMembersService().remove(orgId, String(req.params.id)))),
 

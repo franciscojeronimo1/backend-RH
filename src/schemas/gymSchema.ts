@@ -152,3 +152,46 @@ export const updateMembershipPlanSchema = z.object({
         })
         .strict(),
 });
+
+const importFieldIndex = z.number().int().min(0).max(500).nullable().optional();
+
+/** Importação de alunos (arquivo em base64; mapeamento coluna → campo opcional). */
+export const importGymMembersSchema = z.object({
+    body: z
+        .object({
+            file: z.string().min(1, { message: 'Envie o arquivo' }),
+            fileName: z.string().max(255).optional(),
+            headerRow: z.number().int().min(0).max(1000).optional(),
+            mapping: z
+                .object({
+                    name: importFieldIndex,
+                    cpf: importFieldIndex,
+                    phone: importFieldIndex,
+                    phone2: importFieldIndex,
+                    email: importFieldIndex,
+                    birthDate: importFieldIndex,
+                    accessCode: importFieldIndex,
+                    externalCode: importFieldIndex,
+                    rg: importFieldIndex,
+                    gender: importFieldIndex,
+                    address: importFieldIndex,
+                    district: importFieldIndex,
+                    city: importFieldIndex,
+                    state: importFieldIndex,
+                    zip: importFieldIndex,
+                    status: importFieldIndex,
+                    planName: importFieldIndex,
+                    planPrice: importFieldIndex,
+                    planStart: importFieldIndex,
+                    memberSince: importFieldIndex,
+                    planEnd: importFieldIndex,
+                    notes: importFieldIndex,
+                })
+                .strict()
+                .optional(),
+            duplicates: z.enum(['skip', 'update']).optional(),
+            createPlans: z.boolean().optional(),
+            importInactive: z.boolean().optional(),
+        })
+        .strict(),
+});

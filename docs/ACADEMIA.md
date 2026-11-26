@@ -34,6 +34,21 @@ UPDATE "Organization" SET "businessType" = 'GYM', "billingExempt" = true WHERE i
   histórico. No banco, as FKs de matrículas, mensalidades, acessos, credenciais e avisos para `Member` são
   `NO ACTION` (sem cascade), então um `DELETE` direto em `Member` com histórico falha.
 
+## Importação de alunos (Secullum / planilha)
+- Tela: Alunos → **Importar** (só administrador). API: `POST /gym/members/import/preview` (não grava) e
+  `POST /gym/members/import` (grava), corpo `{ file: <base64>, fileName, headerRow?, mapping?, duplicates?: 'skip'|'update',
+  createPlans?, importInactive? }`.
+- Formatos: CSV/TXT (`;` `,` TAB; UTF-8 ou Latin-1), XLSX e XLS. O cabeçalho pode vir depois de linhas de título do relatório.
+- Colunas reconhecidas pelo título (sem acento): Nome, CPF, Celular/Telefone, E-mail, Data Nascimento, Senha/Cartão,
+  Número/Código, RG, Sexo, Endereço/Bairro/Cidade/UF/CEP, Situação, Serviço/Plano, Valor, Vencimento, Início, Data Inscrição,
+  Observação. O usuário pode trocar o mapeamento na tela.
+- Regras: nome obrigatório; CPF inválido/telefone/data errados viram aviso (importa sem o campo); CPF ou nome (sem CPF)
+  repetido no arquivo = erro na linha; aluno já cadastrado (CPF, ou nome + nascimento) é pulado ou atualizado;
+  senha da catraca repetida/fora do padrão → gera outra (6 dígitos); "Inativo/Bloqueado/Cancelado" → aluno inativo.
+- Com Serviço + Vencimento: cria o plano se não existir (duração pelo nome: mensal, trimestral, semestral, anual…) e a
+  matrícula vigente (sem mensalidade). RG, endereço, código antigo e data de inscrição vão para as observações.
+- A contagem de ausência dos importados começa no dia da importação. Limite: 5.000 linhas / ~3 MB por arquivo.
+
 ## Regras automáticas
 - 7 dias sem presença: "em risco" + aviso. 30 dias: desativa + aviso. Presença reativa (exceto desativado manual).
 - Plano vencendo / vencido: avisos; opcionalmente desativa após a carência.

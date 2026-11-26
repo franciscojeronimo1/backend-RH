@@ -76,8 +76,7 @@ import {
     createMembershipSchema,
     payPaymentSchema,
     createMembershipPlanSchema,
-    updateMembershipPlanSchema,
-} from './schemas/gymSchema';
+    updateMembershipPlanSchema, importGymMembersSchema } from './schemas/gymSchema';
 import { gymController, gymCronHandler } from './controllers/gym/GymController';
 import { requireGym, requireStandard, blockIfBillingExempt } from './middlewares/businessTypeMiddleware';
 
@@ -144,6 +143,8 @@ router.get("/gym/dashboard", ...gymAuth, gymController.dashboard);
 // Alunos
 router.get("/gym/members", ...gymAuth, gymController.listMembers);
 router.post("/gym/members", ...gymAuth, validateSchema(createGymMemberSchema), gymController.createMember);
+router.post("/gym/members/import/preview", ...gymAdmin, validateSchema(importGymMembersSchema), gymController.previewImport);
+router.post("/gym/members/import", ...gymAdmin, validateSchema(importGymMembersSchema), gymController.commitImport);
 router.get("/gym/members/:id", ...gymAuth, gymController.getMember);
 router.patch("/gym/members/:id", ...gymAuth, validateSchema(updateGymMemberSchema), gymController.updateMember);
 router.delete("/gym/members/:id", ...gymAdmin, gymController.deleteMember);
