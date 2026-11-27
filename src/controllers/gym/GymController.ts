@@ -10,6 +10,7 @@ import { GymEvaluationService } from '../../services/gym/GymEvaluationService';
 import { GymMembershipService } from '../../services/gym/GymMembershipService';
 import { GymPlansService } from '../../services/gym/GymPlansService';
 import { GymPixService } from '../../services/gym/pix/GymPixService';
+import { MercadoPagoAccountService } from '../../services/gym/pix/MercadoPagoAccountService';
 import { GymMemberImportService } from '../../services/gym/import/GymMemberImportService';
 
 type Handler = (req: Request, res: Response, orgId: string) => Promise<unknown>;
@@ -114,6 +115,14 @@ export const gymController = {
 
     pixStatus: gym(async (req, res, orgId) => res.json(await new GymPixService().status(orgId, String(req.params.paymentId)))),
 
+    mercadoPagoStatus: gym(async (_req, res, orgId) => res.json(await new MercadoPagoAccountService().status(orgId))),
+
+    mercadoPagoAuthorize: gym(async (req, res, orgId) =>
+        res.json(await new MercadoPagoAccountService().authorize(orgId, req.user?.id ?? null))
+    ),
+
+    mercadoPagoDisconnect: gym(async (_req, res, orgId) => res.json(await new MercadoPagoAccountService().disconnect(orgId))),
+
     cancelPayment: gym(async (req, res, orgId) =>
         res.json(await new GymMembershipService().cancelPayment(orgId, String(req.params.paymentId)))
     ),
@@ -211,6 +220,11 @@ export async function gymCronHandler(req: Request, res: Response) {
     }
     const startedAt = Date.now();
     const results = await new GymEvaluationService().evaluateAll();
+    // Renova tokens do Mercado Pago que vencem em breve (não trava a rotina se falhar)
+    const mercadoPago = await new MercadoPagoAccountService().refreshExpiring().catch((e) => {
+        console.error('[mercadopago] Falha ao renovar tokens no cron:', e instanceof Error ? e.message : e);
+        return { refreshed: 0, failed: -1 };
+    });
     const totals = results.reduce(
         (t, r) => ({
             evaluated: t.evaluated + r.evaluated,
@@ -225,19 +239,20 @@ export async function gymCronHandler(req: Request, res: Response) {
         `[academia] Cron: ${results.length} academia(s), ${totals.evaluated} aluno(s) avaliados, ` +
             `${totals.becameAtRisk} em risco, ${totals.deactivated} desativado(s), ${totals.notificationsCreated} aviso(s) em ${durationMs}ms`
     );
-    return res.json({ message: 'Rotina de alunos executada', organizations: results.length, durationMs, totals, results });
+    return res.json({ message: 'Rotina de alunos executada', organizations: results.length, durationMs, totals, mercadoPago, results });
 }
 
 /** Webhook do Mercado Pago (público; a segurança é a assinatura x-signature + consulta na API). */
 export async function gymPixWebhookHandler(req: Request, res: Response) {
     const q = req.query as Record<string, unknown>;
-    const body = (req.body ?? {}) as { type?: string; topic?: string; data?: { id?: string | number } };
+    const body = (req.body ?? {}) as { type?: string; topic?: string; user_id?: string | number; data?: { id?: string | number } };
     const dataId = String(q['data.id'] ?? q.id ?? body.data?.id ?? '') || undefined;
     const type = String(q.type ?? q.topic ?? body.type ?? body.topic ?? '') || undefined;
     try {
         const result = await new GymPixService().handleWebhook({
             dataId,
             type,
+            mpUserId: body.user_id !== undefined && body.user_id !== null ? String(body.user_id) : undefined,
             xSignature: req.header('x-signature'),
             xRequestId: req.header('x-request-id'),
         });
@@ -247,4 +262,15 @@ export async function gymPixWebhookHandler(req: Request, res: Response) {
         // 500 faz o Mercado Pago tentar de novo mais tarde
         return res.status(500).json({ error: 'Erro ao processar notificação' });
     }
+}
+
+/** Volta do "Conectar Mercado Pago" (público: o navegador do dono chega aqui vindo do MP). Redireciona para o front. */
+export async function mercadoPagoCallbackHandler(req: Request, res: Response) {
+    const q = req.query as Record<string, unknown>;
+    const url = await new MercadoPagoAccountService().handleCallback({
+        code: typeof q.code === 'string' ? q.code : undefined,
+        state: typeof q.state === 'string' ? q.state : undefined,
+        error: typeof q.error === 'string' ? q.error : undefined,
+    });
+    return res.redirect(302, url);
 }

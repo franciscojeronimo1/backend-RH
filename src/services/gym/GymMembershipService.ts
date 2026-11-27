@@ -170,7 +170,7 @@ class GymMembershipService {
             take: 50,
             include: { receivedBy: { select: { id: true, name: true } } },
         });
-        return { payments: payments.map(paymentToJson), pixEnabled: new GymPixService().enabled };
+        return { payments: payments.map(paymentToJson), pixEnabled: await new GymPixService().isEnabledFor(organizationId) };
     }
 
     async pay(organizationId: string, paymentId: string, data: { method: PaymentMethodValue; amount?: number }, userId?: string) {

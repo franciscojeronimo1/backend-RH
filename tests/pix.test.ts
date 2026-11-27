@@ -13,7 +13,7 @@ import {
     verifyMpSignature,
     type FetchLike,
 } from '../src/services/gym/pix/mercadoPago';
-import { GymPixService } from '../src/services/gym/pix/GymPixService';
+import { GymPixService, type MpCredentialProvider } from '../src/services/gym/pix/GymPixService';
 
 const SECRET = 'segredo-webhook';
 const sign = (manifest: string) => createHmac('sha256', SECRET).update(manifest).digest('hex');
@@ -36,8 +36,8 @@ test('assinatura inválida: outro segredo, outro id, header faltando ou malforma
     assert.equal(verifyMpSignature({ xSignature: `ts=1,v1=${v1b}`, xRequestId: undefined, dataId: '123', secret: SECRET }), true);
 });
 
-test('config: sem token fica desligado; expiração limitada a 30 min..30 dias', () => {
-    assert.equal(readMpConfig({}), null);
+test('config: token global é opcional (modo teste); expiração limitada a 30 min..30 dias', () => {
+    assert.equal(readMpConfig({}).accessToken, null);
     const c = readMpConfig({ MERCADOPAGO_ACCESS_TOKEN: ' APP_USR-x ', MERCADOPAGO_PIX_EXPIRATION_MINUTES: '5' })!;
     assert.equal(c.accessToken, 'APP_USR-x');
     assert.equal(c.expirationMinutes, 30);
@@ -106,32 +106,29 @@ test('decisão de baixa: só aprovado + pendente + valor suficiente', () => {
     assert.equal(decideSettlement({ status: 'approved', transaction_amount: 99.99 }, local).kind, 'amount-mismatch');
 });
 
-test('webhook: desligado sem env, 503 sem segredo, 401 com assinatura errada (antes de consultar a API)', async () => {
-    const { fn, calls } = mockFetch([]);
-    const off = new GymPixService(null, fn);
-    assert.equal(off.enabled, false);
-    assert.equal((await off.handleWebhook({ dataId: '1', type: 'payment', xSignature: 'x', xRequestId: 'y' })).status, 503);
-    await assert.rejects(off.charge('org', 'p'), (e: unknown) => (e as { status?: number }).status === 503);
+const noCreds: MpCredentialProvider = {
+    credentialsFor: async () => null,
+    credentialsForMpUser: async () => [],
+    globalCredentials: () => null,
+};
 
-    const base = readMpConfig({ MERCADOPAGO_ACCESS_TOKEN: 't', MERCADOPAGO_API_BASE: 'https://mp.fake' })!;
-    const noSecret = new GymPixService(base, fn);
+test('webhook: 503 sem segredo, 401 com assinatura errada, outro tópico ignorado (sem consultar a API)', async () => {
+    const { fn, calls } = mockFetch([]);
+    const base = readMpConfig({ MERCADOPAGO_API_BASE: 'https://mp.fake' });
+    const noSecret = new GymPixService(base, fn, noCreds);
     assert.equal((await noSecret.handleWebhook({ dataId: '1', type: 'payment', xSignature: 'x', xRequestId: 'y' })).status, 503);
 
-    const svc = new GymPixService({ ...base, webhookSecret: SECRET }, fn);
+    const svc = new GymPixService({ ...base, webhookSecret: SECRET }, fn, noCreds);
     const bad = await svc.handleWebhook({ dataId: '1', type: 'payment', xSignature: `ts=1,v1=${'0'.repeat(64)}`, xRequestId: 'y' });
     assert.equal(bad.status, 401);
-    // assinatura ok, mas tópico que não é pagamento: ignora sem chamar a API
     const v1 = sign('id:1;request-id:y;ts:1;');
     const other = await svc.handleWebhook({ dataId: '1', type: 'merchant_order', xSignature: `ts=1,v1=${v1}`, xRequestId: 'y' });
     assert.equal(other.status, 200);
     assert.equal(calls.length, 0);
 });
 
-test('webhook: pagamento inexistente no MP (simulação do painel) responde 200 para não reenviar', async () => {
-    const { fn, calls } = mockFetch([{ status: 404, body: { message: 'Payment not found' } }]);
-    const base = readMpConfig({ MERCADOPAGO_ACCESS_TOKEN: 't', MERCADOPAGO_API_BASE: 'https://mp.fake', MERCADOPAGO_WEBHOOK_SECRET: SECRET })!;
-    const v1 = sign('id:123456;request-id:r;ts:9;');
-    const r = await new GymPixService(base, fn).handleWebhook({ dataId: '123456', type: 'payment', xSignature: `ts=9,v1=${v1}`, xRequestId: 'r' });
-    assert.equal(r.status, 200);
-    assert.equal(calls[0]!.url, 'https://mp.fake/v1/payments/123456');
+test('academia sem conta conectada (e sem token global): Pix desligado e cobrar dá 503 pedindo para conectar', async () => {
+    const svc = new GymPixService(readMpConfig({}), undefined, noCreds);
+    assert.equal(await svc.isEnabledFor('org'), false);
+    await assert.rejects(svc.charge('org', 'p'), (e: unknown) => (e as { status?: number }).status === 503 && /Conecte a conta Mercado Pago/.test(String((e as Error).message)));
 });

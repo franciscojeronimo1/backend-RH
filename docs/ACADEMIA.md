@@ -77,7 +77,7 @@ Pix copia-e-cola (botão Copiar) e **Enviar no WhatsApp** com a mensagem pronta.
   de 10 min com o mesmo valor, **reaproveita** (não cria outra). Expirou ou mudou o valor: cancela a antiga e cria nova.
 - `GET /gym/payments/:paymentId/pix` (admin): situação. Se ainda pendente, consulta o MP e dá baixa se já foi pago
   (o modal chama a cada 5 s; cobre webhook atrasado/perdido).
-- `POST /gym/pix/webhook` (público): valida `x-signature` (HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
+- `POST /gym/pix/webhook` (público, um só para todas as academias): valida `x-signature` (HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
   com a chave secreta), **consulta o pagamento na API** (nunca confia no corpo) e dá baixa. Idempotente: baixa condicional
   (`status = PENDING`) e aviso com `dedupeKey` por pagamento do MP. Respostas: 401 assinatura inválida, 503 sem configuração,
   200 processado/ignorado (pagamento inexistente, ex.: simulação do painel), 500 erro (o MP reenvia).
@@ -86,42 +86,76 @@ Pix copia-e-cola (botão Copiar) e **Enviar no WhatsApp** com a mensagem pronta.
 - Baixa manual ou cancelamento da mensalidade cancelam o Pix em aberto no MP (sem travar se falhar).
 - E-mail do pagador (o MP exige): o do aluno; sem e-mail, `MERCADOPAGO_PAYER_EMAIL` ou `aluno-<id>@gestaocgs.com`.
   CPF do aluno vai junto quando existir.
-- Sem `MERCADOPAGO_ACCESS_TOKEN` a feature fica desligada: a lista de mensalidades devolve `pixEnabled: false`,
-  o botão aparece desabilitado e os endpoints respondem 503 com mensagem amigável.
-- Hoje a conta do MP é **global** (uma só, por env). Para cada academia receber na própria conta, o próximo passo é
-  guardar o token por organização (ou OAuth do MP) em vez da env.
+- Sem conta Mercado Pago conectada (e sem o token global de teste) a feature fica desligada: `pixEnabled: false`,
+  botão desabilitado e endpoints respondem 503 pedindo para conectar.
+
+### Conta Mercado Pago por academia (OAuth — "Conectar Mercado Pago")
+Cada academia conecta a **própria** conta em *Regras automáticas › Recebimento por Pix*. O Pix de cada academia cai na
+conta dela. Sem conta conectada o Pix fica desligado (`pixEnabled: false`; o botão na ficha aparece desabilitado com o link
+"Conecte o Mercado Pago da academia").
+
+- `GET /gym/mercadopago` (admin): status (`available`, `connected`, `pixEnabled`, `testMode`, `needsReconnect`, conta: user_id,
+  apelido, e-mail, desde quando). Nunca devolve token.
+- `POST /gym/mercadopago/authorize` (admin): devolve a URL `https://auth.mercadopago.com.br/authorization` com `client_id`,
+  `redirect_uri`, `state` e PKCE (`code_challenge`, S256). O `state` é assinado (HMAC), ligado à academia e ao usuário,
+  vale 10 min e é de **uso único** (nonce gravado na academia e consumido no callback).
+- `GET /gym/mercadopago/callback` (público, o navegador do dono volta do MP): confere o state, troca o `code` em
+  `POST /oauth/token` (com `code_verifier`), busca apelido/e-mail em `/users/me` e grava. Redireciona para
+  `<FRONTEND_URL>/academia/configuracoes?mp=connected` (ou `?mp=error&motivo=negado|expirado|token|indisponivel`).
+- `POST /gym/mercadopago/disconnect` (admin): apaga os tokens. (O dono também pode revogar no MP em
+  Seu perfil › Segurança › Aplicações conectadas; aí o sistema pede "Conectar de novo".)
+- Tokens (`access_token` e `refresh_token`) ficam **criptografados** no banco (AES-256-GCM, chave
+  `MERCADOPAGO_TOKEN_ENCRYPTION_KEY`), tabela `MercadoPagoConnection` (user_id, public_key, live_mode, expiração, conexão).
+- Renovação: o token do MP vale 180 dias. Ao usar, se faltar menos de 15 dias, renova com `refresh_token`; a rotina diária
+  (`/gym/cron`) também renova os que vencem em 15 dias. Se o MP recusar (acesso revogado), marca "Conecte de novo".
+- Pix usa o token da academia. Webhook: descobre a academia pela mensalidade com aquele id do MP ou pelo `user_id` da
+  notificação, consulta o pagamento **com o token dela** e só baixa mensalidade **da mesma academia** (pagamento de outra
+  conta apontando para mensalidade alheia é ignorado).
+- Trocar a `MERCADOPAGO_TOKEN_ENCRYPTION_KEY` invalida os tokens gravados: as academias precisam conectar de novo.
 
 ### Envs (Vercel → Project Settings → Environment Variables → Production)
 | Env | Obrigatória | O que é |
 | --- | --- | --- |
-| `MERCADOPAGO_ACCESS_TOKEN` | sim | Access Token de **produção** (`APP_USR-...`). Sem ela o Pix fica desligado. |
-| `MERCADOPAGO_WEBHOOK_SECRET` | sim p/ webhook | Assinatura secreta gerada em Webhooks no painel do MP. Sem ela o webhook responde 503 (a baixa ainda acontece pelo modal aberto). |
+| `MERCADOPAGO_CLIENT_ID` | sim | "Client ID" / número da aplicação no MP Developers. |
+| `MERCADOPAGO_CLIENT_SECRET` | sim | "Client Secret" da aplicação. |
+| `MERCADOPAGO_REDIRECT_URI` | sim | `https://backendrh-gamma.vercel.app/gym/mercadopago/callback` (igual à cadastrada na aplicação). |
+| `MERCADOPAGO_TOKEN_ENCRYPTION_KEY` | sim | Chave para criptografar os tokens: 64 caracteres hex (ex.: `openssl rand -hex 32`). Não perca nem troque. |
+| `MERCADOPAGO_WEBHOOK_SECRET` | sim | Assinatura secreta do webhook da aplicação. |
+| `FRONTEND_URL` | recomendada | `https://gestaocgs.com` (para onde o dono volta depois de conectar). Já existe por causa do Stripe. |
+| `MERCADOPAGO_OAUTH_PKCE` | não | `false` desliga o PKCE (só se não habilitar PKCE na aplicação). Padrão: ligado. |
+| `MERCADOPAGO_RETURN_URL` | não | Outra URL de volta (padrão `<FRONTEND_URL>/academia/configuracoes`). |
 | `MERCADOPAGO_PIX_EXPIRATION_MINUTES` | não | Validade do Pix (30 a 43200). Padrão 4320 = 3 dias. |
 | `MERCADOPAGO_PAYER_EMAIL` | não | E-mail usado quando o aluno não tem e-mail. |
-| `MERCADOPAGO_NOTIFICATION_URL` | não | Força `notification_url` em cada pagamento (normalmente não precisa: use o webhook do painel). |
-| `MERCADOPAGO_API_BASE` | não | Só para testes locais com servidor falso. Não configure em produção. |
+| `MERCADOPAGO_ACCESS_TOKEN` | **não (só teste)** | Token global. Se existir, academias **sem** conta conectada usam essa conta (modo teste/legado). Em produção, não configure. |
+| `MERCADOPAGO_API_BASE` / `MERCADOPAGO_AUTH_BASE` | não | Só para testes locais com servidor falso. |
 
-### Passo a passo (produção)
-1. Criar/entrar na conta Mercado Pago da academia (conta de vendedor) e **cadastrar uma chave Pix** nela
-   (sem chave Pix o MP não gera QR).
-2. Em https://www.mercadopago.com.br/developers/panel/app → **Criar aplicação** (produto: Checkout Transparente / pagamentos online).
-3. Na aplicação → **Credenciais de produção** → copiar o **Access Token** (`APP_USR-...`). Não compartilhar.
-4. Na aplicação → **Webhooks → Configurar notificações**:
-   - URL modo produção: `https://backendrh-gamma.vercel.app/gym/pix/webhook`
-   - Evento: **Pagamentos** (`payment`)
-   - Salvar e copiar a **assinatura secreta** gerada.
-5. Na Vercel (projeto do backend) criar `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET` em **Production**.
-6. Fazer o deploy (push na main ou Redeploy). **Atenção:** o build roda `prisma migrate deploy`, que aplica a migration
-   `20261127010000_academia_pix` na Neon (só adiciona colunas e valores de enum; nada é apagado).
-7. Testar: gerar um Pix de valor baixo (ex.: R$ 1,00) numa mensalidade de teste, pagar pelo app do banco e ver a baixa
-   automática + aviso. No painel do MP, Webhooks mostra as entregas (status 200).
+### Passo a passo do Francisco (uma vez, para todas as academias)
+1. Em https://www.mercadopago.com.br/developers/panel/app → **Criar aplicação** (com a conta do Sistema CGS).
+   Tipo: pagamentos online / Checkout Transparente; marque que vai integrar **para terceiros (marketplace / OAuth)**.
+2. Na aplicação → **Editar** (detalhes da aplicação):
+   - **URLs de redirecionamento**: `https://backendrh-gamma.vercel.app/gym/mercadopago/callback`
+   - Habilite **"fluxo de código de autorização com PKCE"** (recomendado; o sistema já manda o PKCE).
+3. Copie **Client ID** e **Client Secret** (Credenciais de produção).
+4. **Webhooks → Configurar notificações**: URL de produção `https://backendrh-gamma.vercel.app/gym/pix/webhook`,
+   evento **Pagamentos**. Salve e copie a **assinatura secreta**.
+5. Gere a chave de criptografia (64 hex), ex.: `openssl rand -hex 32` (ou o arquivo gerado no box), e guarde num lugar seguro.
+6. Na Vercel (backend) crie as envs obrigatórias da tabela em **Production**. Se tinha criado `MERCADOPAGO_ACCESS_TOKEN`
+   antes, **apague** (senão academias sem conta conectada cobram na conta dele).
+7. Deploy (push na main ou Redeploy). **Atenção:** o build roda `prisma migrate deploy` e aplica na Neon as migrations
+   `20261127010000_academia_pix` e `20261127030000_academia_mercadopago_oauth` (só adicionam; nada é apagado).
 
-### Testar sem dinheiro real
-- Credenciais de **teste** do MP (Access Token `TEST-...` da aplicação, ou de um usuário de teste) geram Pix de teste
-  que não podem ser pagos por banco real. Use a URL de webhook de **modo teste** no painel e o botão "Simular" para
-  conferir a assinatura (a simulação usa um id que não existe: o endpoint responde 200 e ignora).
-- Localmente, os testes usam um servidor falso: `MERCADOPAGO_API_BASE=http://localhost:3398`.
-- `npm test` cobre assinatura, montagem da requisição (fetch mockado, sem rede), decisão de baixa e respostas do webhook.
+### O que o dono da academia faz
+1. Ter conta Mercado Pago com **chave Pix cadastrada** (app do MP › Pix › Minhas chaves).
+2. No sistema: *Regras automáticas › Recebimento por Pix › **Conectar Mercado Pago*** → entra no MP → **Autorizar**.
+   Volta para o sistema com "Conectado à conta …". Pronto: o botão "Cobrar via Pix" já funciona na ficha dos alunos.
+
+### Testar
+- Use **contas de teste** do MP (Suas integrações › Contas de teste): crie um vendedor de teste, entre com ele no
+  navegador e clique em Conectar; o Pix gerado é de teste. Um comprador de teste não paga Pix por banco real.
+- Localmente, os testes usam um servidor falso do MP (Payments + OAuth): `MERCADOPAGO_API_BASE` e `MERCADOPAGO_AUTH_BASE`
+  apontando para ele.
+- `npm test` cobre criptografia, state assinado, PKCE, URL de autorização, troca/renovação de token (fetch mockado),
+  assinatura do webhook e decisão de baixa.
 
 ## Ainda não implementado
 - Agente local da catraca (C# x86 + EasyInner) e rotas de dispositivo; cadastro de digitais.

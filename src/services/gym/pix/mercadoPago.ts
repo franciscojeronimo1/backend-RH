@@ -5,7 +5,8 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
 export interface MpConfig {
-    accessToken: string;
+    /** Token global (MERCADOPAGO_ACCESS_TOKEN): só modo teste/legado. Em produção cada academia conecta a própria conta. */
+    accessToken: string | null;
     webhookSecret: string | null;
     apiBase: string;
     notificationUrl: string | null;
@@ -13,10 +14,9 @@ export interface MpConfig {
     defaultPayerEmail: string | null;
 }
 
-/** Lê a configuração das envs. Sem MERCADOPAGO_ACCESS_TOKEN a cobrança Pix fica desligada (null). */
-export function readMpConfig(env: NodeJS.ProcessEnv = process.env): MpConfig | null {
-    const accessToken = env.MERCADOPAGO_ACCESS_TOKEN?.trim();
-    if (!accessToken) return null;
+/** Configuração geral do Pix (webhook, validade etc.). O token vem da academia conectada (ou do global, em teste). */
+export function readMpConfig(env: NodeJS.ProcessEnv = process.env): MpConfig {
+    const accessToken = env.MERCADOPAGO_ACCESS_TOKEN?.trim() || null;
     const minutes = parseInt(env.MERCADOPAGO_PIX_EXPIRATION_MINUTES ?? '', 10);
     return {
         accessToken,
@@ -76,7 +76,7 @@ export function mpDate(d: Date): string {
 
 export class MercadoPagoClient {
     constructor(
-        private config: Pick<MpConfig, 'accessToken' | 'apiBase' | 'notificationUrl'>,
+        private config: { accessToken: string; apiBase: string; notificationUrl: string | null },
         private fetchImpl: FetchLike = fetch as unknown as FetchLike
     ) {}
 

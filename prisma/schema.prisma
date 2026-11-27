@@ -55,6 +55,7 @@ model Organization{
 
   // Módulo Academia
   gymSettings       GymSettings?
+  mercadoPago       MercadoPagoConnection?
   members           Member[]
   membershipPlans   MembershipPlan[]
   memberships       Membership[]
@@ -660,4 +661,36 @@ model Notification {
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, readAt])
   @@index([organizationId, createdAt])
+}
+
+/// Conta Mercado Pago da academia, conectada via OAuth ("Conectar Mercado Pago"). Tokens criptografados (AES-256-GCM).
+model MercadoPagoConnection {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Conta MP (user_id do vendedor). Preenchido depois de conectar.
+  mpUserId        String?
+  mpNickname      String?
+  mpEmail         String?
+  publicKey       String?
+  liveMode        Boolean?
+  scope           String?
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  expiresAt       DateTime?
+  connectedAt     DateTime?
+  connectedById   String?
+  lastRefreshAt   DateTime?
+  /// Último erro de renovação (ex.: dono revogou o acesso no MP): pede para reconectar
+  lastError       String?
+
+  /// Tentativa de conexão em andamento (anti-CSRF / uso único)
+  oauthNonce          String?
+  oauthNonceExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mpUserId])
 }

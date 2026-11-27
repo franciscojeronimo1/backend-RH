@@ -14,6 +14,14 @@ import {
     type MpConfig,
     type MpPayment,
 } from './mercadoPago';
+import { MercadoPagoAccountService, type MpCredentials } from './MercadoPagoAccountService';
+
+/** De onde vem o token do MP: conta da academia (OAuth) ou global (teste). Injetável nos testes. */
+export interface MpCredentialProvider {
+    credentialsFor(organizationId: string): Promise<MpCredentials | null>;
+    credentialsForMpUser(mpUserId: string): Promise<MpCredentials[]>;
+    globalCredentials(): MpCredentials | null;
+}
 
 /** Reaproveita a cobrança se ainda faltar pelo menos isso para expirar. */
 const REUSE_MIN_REMAINING_MS = 10 * 60 * 1000;
@@ -66,23 +74,33 @@ export class GymPixService {
     private notifications = new GymNotificationService();
 
     constructor(
-        private config: MpConfig | null = readMpConfig(),
-        private fetchImpl?: FetchLike
+        private config: MpConfig = readMpConfig(),
+        private fetchImpl?: FetchLike,
+        private credentials: MpCredentialProvider = new MercadoPagoAccountService(undefined, undefined, fetchImpl)
     ) {}
 
-    get enabled() {
-        return !!this.config;
+    /** Pix disponível para esta academia (conta MP conectada, ou token global de teste). */
+    async isEnabledFor(organizationId: string) {
+        return !!(await this.credentials.credentialsFor(organizationId));
     }
 
-    private client() {
-        if (!this.config) {
+    private clientWith(creds: MpCredentials) {
+        return new MercadoPagoClient(
+            { accessToken: creds.accessToken, apiBase: this.config.apiBase, notificationUrl: this.config.notificationUrl },
+            this.fetchImpl
+        );
+    }
+
+    private async clientFor(organizationId: string) {
+        const creds = await this.credentials.credentialsFor(organizationId);
+        if (!creds) {
             throw new GymError(
-                'Cobrança por Pix ainda não está configurada no servidor (falta o token do Mercado Pago).',
+                'Conecte a conta Mercado Pago da academia em Regras automáticas › Recebimento por Pix para cobrar via Pix.',
                 503,
                 'PIX_DISABLED'
             );
         }
-        return new MercadoPagoClient(this.config, this.fetchImpl);
+        return { client: this.clientWith(creds), creds };
     }
 
     private loadPayment(where: { id: string; organizationId?: string }) {
@@ -97,7 +115,7 @@ export class GymPixService {
 
     /** Gera (ou reaproveita) a cobrança Pix de uma mensalidade pendente. */
     async charge(organizationId: string, paymentId: string) {
-        const client = this.client();
+        const { client } = await this.clientFor(organizationId);
         const p = await this.loadPayment({ id: paymentId, organizationId });
         if (!p) throw new GymError('Mensalidade não encontrada', 404);
         if (p.status !== 'PENDING') throw new GymError('Esta mensalidade não está pendente', 400);
@@ -123,7 +141,7 @@ export class GymPixService {
         const cpf = p.member.cpf && /^\d{11}$/.test(p.member.cpf) ? p.member.cpf : null;
         const email = isEmail(p.member.email)
             ? p.member.email
-            : (this.config!.defaultPayerEmail ?? `aluno-${p.member.id.slice(0, 8)}@gestaocgs.com`);
+            : (this.config.defaultPayerEmail ?? `aluno-${p.member.id.slice(0, 8)}@gestaocgs.com`);
         let mp: MpPayment;
         try {
             mp = await client.createPix({
@@ -132,7 +150,7 @@ export class GymPixService {
                 externalReference: externalReferenceFor(p.id),
                 // Mesma chave = mesma cobrança no MP (clique duplo não gera dois Pix)
                 idempotencyKey: `gym-pix-${p.id}-${Math.round(amount * 100)}-${p.externalPaymentId ?? 'first'}`,
-                expiresAt: new Date(now + this.config!.expirationMinutes * 60_000),
+                expiresAt: new Date(now + this.config.expirationMinutes * 60_000),
                 payer: { email, firstName, lastName: rest.join(' ') || undefined, cpf },
             });
         } catch (error) {
@@ -140,7 +158,7 @@ export class GymPixService {
                 console.error('[pix] Erro ao criar cobrança no Mercado Pago:', error.status, JSON.stringify(error.body));
                 throw new GymError(
                     error.status === 401 || error.status === 403
-                        ? 'O Mercado Pago recusou o token configurado. Confira o MERCADOPAGO_ACCESS_TOKEN.'
+                        ? 'O Mercado Pago recusou o acesso desta academia. Conecte a conta Mercado Pago de novo.'
                         : `Não foi possível gerar o Pix no Mercado Pago: ${error.message}`,
                     502,
                     'PIX_PROVIDER_ERROR'
@@ -160,7 +178,7 @@ export class GymPixService {
                 pixQrCode: td.qr_code,
                 pixQrCodeBase64: td.qr_code_base64 ?? null,
                 pixTicketUrl: td.ticket_url ?? null,
-                pixExpiresAt: mp.date_of_expiration ? new Date(mp.date_of_expiration) : new Date(now + this.config!.expirationMinutes * 60_000),
+                pixExpiresAt: mp.date_of_expiration ? new Date(mp.date_of_expiration) : new Date(now + this.config.expirationMinutes * 60_000),
             },
         });
         return { reused: false, ...pixToJson(updated) };
@@ -170,16 +188,17 @@ export class GymPixService {
     async status(organizationId: string, paymentId: string) {
         let p = await this.loadPayment({ id: paymentId, organizationId });
         if (!p) throw new GymError('Mensalidade não encontrada', 404);
-        if (this.config && p.status === 'PENDING' && p.externalPaymentId && p.pixStatus === 'pending') {
+        const creds = await this.credentials.credentialsFor(organizationId);
+        if (creds && p.status === 'PENDING' && p.externalPaymentId && p.pixStatus === 'pending') {
             try {
-                const mp = await this.client().getPayment(p.externalPaymentId);
-                await this.applyMpPayment(mp);
+                const mp = await this.clientWith(creds).getPayment(p.externalPaymentId);
+                await this.applyMpPayment(mp, creds);
                 p = (await this.loadPayment({ id: paymentId, organizationId }))!;
             } catch (error) {
                 console.error('[pix] Falha ao consultar pagamento no Mercado Pago:', error instanceof Error ? error.message : error);
             }
         }
-        return { enabled: this.enabled, ...pixToJson(p) };
+        return { enabled: !!creds, ...pixToJson(p) };
     }
 
     /**
@@ -189,10 +208,10 @@ export class GymPixService {
     async handleWebhook(input: {
         dataId: string | undefined;
         type: string | undefined;
+        mpUserId?: string | undefined;
         xSignature: string | undefined;
         xRequestId: string | undefined;
     }): Promise<{ status: number; body: Record<string, unknown> }> {
-        if (!this.config) return { status: 503, body: { error: 'Pix desligado (MERCADOPAGO_ACCESS_TOKEN ausente)' } };
         if (!this.config.webhookSecret) {
             return { status: 503, body: { error: 'MERCADOPAGO_WEBHOOK_SECRET não configurado' } };
         }
@@ -201,26 +220,48 @@ export class GymPixService {
         }
         if (input.type && input.type !== 'payment') return { status: 200, body: { ignored: `tipo ${input.type}` } };
         if (!input.dataId) return { status: 200, body: { ignored: 'sem data.id' } };
-        let mp: MpPayment;
-        try {
-            mp = await this.client().getPayment(input.dataId);
-        } catch (error) {
-            // 404 = pagamento que não é desta conta (ex.: simulação do painel): responde 200 para o MP não reenviar
-            if (error instanceof MercadoPagoError && error.status === 404) {
-                return { status: 200, body: { ignored: 'pagamento não encontrado no Mercado Pago' } };
-            }
-            throw error;
+
+        // Descobre de qual academia é: 1) mensalidade com esse id do MP; 2) contas com o user_id da notificação; 3) token global (teste)
+        const candidates: MpCredentials[] = [];
+        const local = await prismaClient.payment.findFirst({
+            where: { externalPaymentId: input.dataId },
+            select: { organizationId: true },
+        });
+        if (local) {
+            const c = await this.credentials.credentialsFor(local.organizationId);
+            if (c) candidates.push(c);
         }
-        const result = await this.applyMpPayment(mp);
-        return { status: 200, body: { ok: true, result } };
+        if (input.mpUserId) candidates.push(...(await this.credentials.credentialsForMpUser(input.mpUserId)));
+        const g = this.credentials.globalCredentials();
+        if (g) candidates.push(g);
+        const seen = new Set<string>();
+        const unique = candidates.filter((c) => (seen.has(c.accessToken) ? false : (seen.add(c.accessToken), true)));
+        if (unique.length === 0) return { status: 200, body: { ignored: 'nenhuma conta conectada para esta notificação' } };
+
+        for (const creds of unique) {
+            let mp: MpPayment;
+            try {
+                mp = await this.clientWith(creds).getPayment(input.dataId);
+            } catch (error) {
+                // 404/401/403 = o pagamento não é desta conta: tenta a próxima
+                if (error instanceof MercadoPagoError && [401, 403, 404].includes(error.status)) continue;
+                throw error;
+            }
+            const result = await this.applyMpPayment(mp, creds);
+            return { status: 200, body: { ok: true, result } };
+        }
+        // Ex.: simulação do painel (id inexistente). 200 para o MP não reenviar.
+        return { status: 200, body: { ignored: 'pagamento não encontrado no Mercado Pago' } };
     }
 
     /** Aplica o estado do pagamento do MP na mensalidade correspondente (por external_reference). */
-    async applyMpPayment(mp: MpPayment): Promise<string> {
+    async applyMpPayment(mp: MpPayment, creds?: MpCredentials): Promise<string> {
         const localId = paymentIdFromReference(mp.external_reference);
         if (!localId) return 'ignored:not-ours';
         const p = await this.loadPayment({ id: localId });
         if (!p) return 'ignored:payment-not-found';
+        // Pagamento lido com o token de uma academia só pode baixar mensalidade dessa academia
+        if (creds?.source === 'oauth' && creds.organizationId !== p.organizationId) return 'ignored:other-organization';
         const mpId = String(mp.id);
         const isCurrent = p.externalPaymentId === mpId;
 
@@ -275,11 +316,15 @@ export class GymPixService {
 
     /** Ao dar baixa manual ou cancelar a mensalidade, cancela o Pix em aberto no MP (sem travar se falhar). */
     async cancelActivePixQuietly(paymentId: string) {
-        if (!this.config) return;
-        const p = await prismaClient.payment.findUnique({ where: { id: paymentId }, select: { externalPaymentId: true, pixStatus: true } });
+        const p = await prismaClient.payment.findUnique({
+            where: { id: paymentId },
+            select: { externalPaymentId: true, pixStatus: true, organizationId: true },
+        });
         if (!p?.externalPaymentId || p.pixStatus !== 'pending') return;
         try {
-            await this.client().cancelPayment(p.externalPaymentId);
+            const creds = await this.credentials.credentialsFor(p.organizationId);
+            if (!creds) return;
+            await this.clientWith(creds).cancelPayment(p.externalPaymentId);
             await prismaClient.payment.update({ where: { id: paymentId }, data: { pixStatus: 'cancelled' } });
         } catch (error) {
             console.error('[pix] Não foi possível cancelar o Pix no Mercado Pago:', error instanceof Error ? error.message : error);
