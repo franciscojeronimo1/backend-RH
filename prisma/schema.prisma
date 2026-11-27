@@ -365,6 +365,8 @@ enum NotificationType {
   MEMBER_REACTIVATED
   PLAN_EXPIRING
   PLAN_EXPIRED
+  PAYMENT_RECEIVED
+  PAYMENT_ISSUE
 }
 
 enum MembershipStatus {
@@ -545,11 +547,21 @@ model Payment {
   paidAt  DateTime?
   notes   String?
 
+  /// Cobrança Pix (Mercado Pago). Guarda a cobrança ativa para reaproveitar e dar baixa pelo webhook.
+  externalPaymentId String?
+  pixStatus         String?
+  pixAmount         Decimal?  @db.Decimal(10, 2)
+  pixQrCode         String?
+  pixQrCodeBase64   String?
+  pixTicketUrl      String?
+  pixExpiresAt      DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId, status, dueDate])
   @@index([memberId, dueDate])
+  @@index([externalPaymentId])
 }
 
 /// Equipamento de acesso (catraca Topdata Inner, leitor biométrico...). O agente local se autentica com a chave.

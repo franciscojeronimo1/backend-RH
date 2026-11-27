@@ -65,6 +65,64 @@ UPDATE "Organization" SET "businessType" = 'GYM', "billingExempt" = true WHERE i
 - Cálculos puros em `src/services/gym/ownerDashboard.ts` (testes em `tests/ownerDashboard.test.ts`, sem banco).
 - "Novos no mês" usa a data de cadastro. Na importação, se a planilha tiver "aluno desde", ela vira a data de cadastro (o aluno importado não conta como novo).
 
+## Cobrança por Pix (Mercado Pago)
+
+Na ficha do aluno, cada mensalidade pendente tem **Cobrar via Pix** (só administrador). O modal mostra QR Code,
+Pix copia-e-cola (botão Copiar) e **Enviar no WhatsApp** com a mensagem pronta. Quando o aluno paga, a mensalidade
+é baixada sozinha (método Pix, "automático (Mercado Pago)") e aparece o aviso "Pix recebido".
+
+### Como funciona
+- `POST /gym/payments/:paymentId/pix` (admin): cria o Pix na API de Payments do MP (`payment_method_id: "pix"`,
+  `external_reference: "gym-payment:<id>"`, header `X-Idempotency-Key`). Se já houver cobrança pendente que vale por mais
+  de 10 min com o mesmo valor, **reaproveita** (não cria outra). Expirou ou mudou o valor: cancela a antiga e cria nova.
+- `GET /gym/payments/:paymentId/pix` (admin): situação. Se ainda pendente, consulta o MP e dá baixa se já foi pago
+  (o modal chama a cada 5 s; cobre webhook atrasado/perdido).
+- `POST /gym/pix/webhook` (público): valida `x-signature` (HMAC-SHA256 de `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
+  com a chave secreta), **consulta o pagamento na API** (nunca confia no corpo) e dá baixa. Idempotente: baixa condicional
+  (`status = PENDING`) e aviso com `dedupeKey` por pagamento do MP. Respostas: 401 assinatura inválida, 503 sem configuração,
+  200 processado/ignorado (pagamento inexistente, ex.: simulação do painel), 500 erro (o MP reenvia).
+- Pix com valor menor que a mensalidade, ou pago numa mensalidade já paga/cancelada: **não** dá baixa e gera aviso
+  "PAYMENT_ISSUE" para o dono conferir/devolver no MP.
+- Baixa manual ou cancelamento da mensalidade cancelam o Pix em aberto no MP (sem travar se falhar).
+- E-mail do pagador (o MP exige): o do aluno; sem e-mail, `MERCADOPAGO_PAYER_EMAIL` ou `aluno-<id>@gestaocgs.com`.
+  CPF do aluno vai junto quando existir.
+- Sem `MERCADOPAGO_ACCESS_TOKEN` a feature fica desligada: a lista de mensalidades devolve `pixEnabled: false`,
+  o botão aparece desabilitado e os endpoints respondem 503 com mensagem amigável.
+- Hoje a conta do MP é **global** (uma só, por env). Para cada academia receber na própria conta, o próximo passo é
+  guardar o token por organização (ou OAuth do MP) em vez da env.
+
+### Envs (Vercel → Project Settings → Environment Variables → Production)
+| Env | Obrigatória | O que é |
+| --- | --- | --- |
+| `MERCADOPAGO_ACCESS_TOKEN` | sim | Access Token de **produção** (`APP_USR-...`). Sem ela o Pix fica desligado. |
+| `MERCADOPAGO_WEBHOOK_SECRET` | sim p/ webhook | Assinatura secreta gerada em Webhooks no painel do MP. Sem ela o webhook responde 503 (a baixa ainda acontece pelo modal aberto). |
+| `MERCADOPAGO_PIX_EXPIRATION_MINUTES` | não | Validade do Pix (30 a 43200). Padrão 4320 = 3 dias. |
+| `MERCADOPAGO_PAYER_EMAIL` | não | E-mail usado quando o aluno não tem e-mail. |
+| `MERCADOPAGO_NOTIFICATION_URL` | não | Força `notification_url` em cada pagamento (normalmente não precisa: use o webhook do painel). |
+| `MERCADOPAGO_API_BASE` | não | Só para testes locais com servidor falso. Não configure em produção. |
+
+### Passo a passo (produção)
+1. Criar/entrar na conta Mercado Pago da academia (conta de vendedor) e **cadastrar uma chave Pix** nela
+   (sem chave Pix o MP não gera QR).
+2. Em https://www.mercadopago.com.br/developers/panel/app → **Criar aplicação** (produto: Checkout Transparente / pagamentos online).
+3. Na aplicação → **Credenciais de produção** → copiar o **Access Token** (`APP_USR-...`). Não compartilhar.
+4. Na aplicação → **Webhooks → Configurar notificações**:
+   - URL modo produção: `https://backendrh-gamma.vercel.app/gym/pix/webhook`
+   - Evento: **Pagamentos** (`payment`)
+   - Salvar e copiar a **assinatura secreta** gerada.
+5. Na Vercel (projeto do backend) criar `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET` em **Production**.
+6. Fazer o deploy (push na main ou Redeploy). **Atenção:** o build roda `prisma migrate deploy`, que aplica a migration
+   `20261127010000_academia_pix` na Neon (só adiciona colunas e valores de enum; nada é apagado).
+7. Testar: gerar um Pix de valor baixo (ex.: R$ 1,00) numa mensalidade de teste, pagar pelo app do banco e ver a baixa
+   automática + aviso. No painel do MP, Webhooks mostra as entregas (status 200).
+
+### Testar sem dinheiro real
+- Credenciais de **teste** do MP (Access Token `TEST-...` da aplicação, ou de um usuário de teste) geram Pix de teste
+  que não podem ser pagos por banco real. Use a URL de webhook de **modo teste** no painel e o botão "Simular" para
+  conferir a assinatura (a simulação usa um id que não existe: o endpoint responde 200 e ignora).
+- Localmente, os testes usam um servidor falso: `MERCADOPAGO_API_BASE=http://localhost:3398`.
+- `npm test` cobre assinatura, montagem da requisição (fetch mockado, sem rede), decisão de baixa e respostas do webhook.
+
 ## Ainda não implementado
 - Agente local da catraca (C# x86 + EasyInner) e rotas de dispositivo; cadastro de digitais.
 - Bloqueio de inadimplente na catraca, importação do Secullum, cobrança por Pix.

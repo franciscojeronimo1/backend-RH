@@ -77,7 +77,7 @@ import {
     payPaymentSchema,
     createMembershipPlanSchema,
     updateMembershipPlanSchema, importGymMembersSchema } from './schemas/gymSchema';
-import { gymController, gymCronHandler } from './controllers/gym/GymController';
+import { gymController, gymCronHandler, gymPixWebhookHandler } from './controllers/gym/GymController';
 import { requireGym, requireStandard, blockIfBillingExempt } from './middlewares/businessTypeMiddleware';
 
 const router = Router();
@@ -133,6 +133,7 @@ router.put(
 // ========== Academia (somente organizações businessType = GYM) ==========
 // Cron externo (serverless): Authorization: Bearer <CRON_SECRET>
 router.get("/gym/cron", asyncHandler(gymCronHandler));
+router.post("/gym/pix/webhook", asyncHandler(gymPixWebhookHandler));
 const gymAuth = [authMiddleware, tenantMiddleware, requireGym] as const;
 const gymAdmin = [...gymAuth, roleMiddleware(['ADMIN'])] as const;
 // Regras automáticas
@@ -156,6 +157,8 @@ router.post("/gym/members/:id/memberships", ...gymAuth, validateSchema(createMem
 router.post("/gym/memberships/:membershipId/cancel", ...gymAdmin, gymController.cancelMembership);
 router.get("/gym/members/:id/payments", ...gymAuth, gymController.listMemberPayments);
 router.post("/gym/payments/:paymentId/pay", ...gymAuth, validateSchema(payPaymentSchema), gymController.payPayment);
+router.post("/gym/payments/:paymentId/pix", ...gymAdmin, gymController.chargePix);
+router.get("/gym/payments/:paymentId/pix", ...gymAdmin, gymController.pixStatus);
 router.post("/gym/payments/:paymentId/cancel", ...gymAdmin, gymController.cancelPayment);
 // Planos da academia
 router.get("/gym/plans", ...gymAuth, gymController.listPlans);

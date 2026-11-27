@@ -2,6 +2,7 @@ import { prismaClient } from '../../config/prismaClient';
 import { GymError } from './GymError';
 import { GymPlansService } from './GymPlansService';
 import { memberDetailSelect, withComputed, type PaymentMethodValue } from './GymMembersService';
+import { GymPixService } from './pix/GymPixService';
 import { dbDateToYmd, planEndYmd, todayYmd, addToYmd, ymdToDbDate } from './gymDates';
 
 export interface MembershipInput {
@@ -30,7 +31,11 @@ const membershipToJson = <T extends MembershipRow>(m: T) => ({
 });
 
 type PaymentRow = { amount: { toString(): string }; dueDate: Date } & Record<string, unknown>;
-export const paymentToJson = <T extends PaymentRow>(p: T) => ({ ...p, amount: money(p.amount), dueDate: dbDateToYmd(p.dueDate) });
+/** Não manda o QR/copia-e-cola na lista (são grandes); a ficha busca em /gym/payments/:id/pix. */
+export const paymentToJson = <T extends PaymentRow>(p: T) => {
+    const { pixQrCode: _q, pixQrCodeBase64: _b, pixTicketUrl: _t, pixAmount: _a, ...rest } = p as T & Record<string, unknown>;
+    return { ...rest, amount: money(p.amount), dueDate: dbDateToYmd(p.dueDate) };
+};
 
 class GymMembershipService {
     /** Valida o plano antes de criar aluno + matrícula (evita aluno criado com matrícula inválida). */
@@ -165,7 +170,7 @@ class GymMembershipService {
             take: 50,
             include: { receivedBy: { select: { id: true, name: true } } },
         });
-        return { payments: payments.map(paymentToJson) };
+        return { payments: payments.map(paymentToJson), pixEnabled: new GymPixService().enabled };
     }
 
     async pay(organizationId: string, paymentId: string, data: { method: PaymentMethodValue; amount?: number }, userId?: string) {
@@ -182,6 +187,7 @@ class GymMembershipService {
                 receivedById: userId ?? null,
             },
         });
+        await new GymPixService().cancelActivePixQuietly(p.id);
         return { message: 'Pagamento registrado', payment: paymentToJson(updated) };
     }
 
@@ -190,6 +196,7 @@ class GymMembershipService {
         if (!p) throw new GymError('Mensalidade não encontrada', 404);
         if (p.status === 'CANCELLED') throw new GymError('Mensalidade já cancelada', 400);
         const updated = await prismaClient.payment.update({ where: { id: p.id }, data: { status: 'CANCELLED' } });
+        await new GymPixService().cancelActivePixQuietly(p.id);
         return { message: 'Mensalidade cancelada', payment: paymentToJson(updated) };
     }
 }

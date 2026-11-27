@@ -11,7 +11,9 @@ export type NotificationTypeValue =
     | 'MEMBER_DEACTIVATED'
     | 'MEMBER_REACTIVATED'
     | 'PLAN_EXPIRING'
-    | 'PLAN_EXPIRED';
+    | 'PLAN_EXPIRED'
+    | 'PAYMENT_RECEIVED'
+    | 'PAYMENT_ISSUE';
 
 export interface GymRuleSettings {
     atRiskAfterDays: number;

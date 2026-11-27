@@ -9,6 +9,7 @@ import { GymNotificationService } from '../../services/gym/GymNotificationServic
 import { GymEvaluationService } from '../../services/gym/GymEvaluationService';
 import { GymMembershipService } from '../../services/gym/GymMembershipService';
 import { GymPlansService } from '../../services/gym/GymPlansService';
+import { GymPixService } from '../../services/gym/pix/GymPixService';
 import { GymMemberImportService } from '../../services/gym/import/GymMemberImportService';
 
 type Handler = (req: Request, res: Response, orgId: string) => Promise<unknown>;
@@ -108,6 +109,10 @@ export const gymController = {
     payPayment: gym(async (req, res, orgId) =>
         res.json(await new GymMembershipService().pay(orgId, String(req.params.paymentId), req.body, req.user?.id))
     ),
+
+    chargePix: gym(async (req, res, orgId) => res.json(await new GymPixService().charge(orgId, String(req.params.paymentId)))),
+
+    pixStatus: gym(async (req, res, orgId) => res.json(await new GymPixService().status(orgId, String(req.params.paymentId)))),
 
     cancelPayment: gym(async (req, res, orgId) =>
         res.json(await new GymMembershipService().cancelPayment(orgId, String(req.params.paymentId)))
@@ -221,4 +226,25 @@ export async function gymCronHandler(req: Request, res: Response) {
             `${totals.becameAtRisk} em risco, ${totals.deactivated} desativado(s), ${totals.notificationsCreated} aviso(s) em ${durationMs}ms`
     );
     return res.json({ message: 'Rotina de alunos executada', organizations: results.length, durationMs, totals, results });
+}
+
+/** Webhook do Mercado Pago (público; a segurança é a assinatura x-signature + consulta na API). */
+export async function gymPixWebhookHandler(req: Request, res: Response) {
+    const q = req.query as Record<string, unknown>;
+    const body = (req.body ?? {}) as { type?: string; topic?: string; data?: { id?: string | number } };
+    const dataId = String(q['data.id'] ?? q.id ?? body.data?.id ?? '') || undefined;
+    const type = String(q.type ?? q.topic ?? body.type ?? body.topic ?? '') || undefined;
+    try {
+        const result = await new GymPixService().handleWebhook({
+            dataId,
+            type,
+            xSignature: req.header('x-signature'),
+            xRequestId: req.header('x-request-id'),
+        });
+        return res.status(result.status).json(result.body);
+    } catch (error) {
+        console.error('[pix] Erro no webhook do Mercado Pago:', error instanceof Error ? error.message : error);
+        // 500 faz o Mercado Pago tentar de novo mais tarde
+        return res.status(500).json({ error: 'Erro ao processar notificação' });
+    }
 }
