@@ -45,7 +45,9 @@ export const gymController = {
         })
     ),
 
-    dashboard: gym(async (_req, res, orgId) => res.json(await new GymDashboardService().execute(orgId))),
+    dashboard: gym(async (req, res, orgId) =>
+        res.json(await new GymDashboardService().execute(orgId, { includeFinance: req.user?.role === 'ADMIN' }))
+    ),
 
     evaluateNow: gym(async (_req, res, orgId) => {
         const summary = await new GymEvaluationService().evaluateOrganization(orgId);

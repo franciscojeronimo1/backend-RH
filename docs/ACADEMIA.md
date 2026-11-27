@@ -59,6 +59,12 @@ UPDATE "Organization" SET "businessType" = 'GYM', "billingExempt" = true WHERE i
   (`VERCEL` definido) ou com `GYM_SCHEDULER_DISABLED=true`.
 - Também roda ao abrir o painel (se passou 6h). Idempotente: avisos têm `dedupeKey` única, rodar 2x não duplica.
 
+## Painel do dono (`GET /gym/dashboard`)
+- Qualquer usuário da academia: alunos ativos / em risco / inativos, novos no mês, desativados no mês, presenças, planos vencendo/vencidos, alunos em risco e últimos avisos.
+- Só administrador (dono) recebe `finance`: receita do mês (mensalidades pagas no mês), a receber (pendentes a vencer), em atraso (pendentes vencidas), inadimplentes (top 10 por dias de atraso, agrupados por aluno) e série dos últimos 6 meses (receita, novos, desativados). Para funcionário vem `finance: null`.
+- Cálculos puros em `src/services/gym/ownerDashboard.ts` (testes em `tests/ownerDashboard.test.ts`, sem banco).
+- "Novos no mês" usa a data de cadastro. Na importação, se a planilha tiver "aluno desde", ela vira a data de cadastro (o aluno importado não conta como novo).
+
 ## Ainda não implementado
 - Agente local da catraca (C# x86 + EasyInner) e rotas de dispositivo; cadastro de digitais.
 - Bloqueio de inadimplente na catraca, importação do Secullum, cobrança por Pix.

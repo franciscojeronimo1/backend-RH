@@ -55,6 +55,8 @@ export interface AnalyzedRow {
         planName: string | null;
         planPrice: number | null;
         planStart: string | null;
+        /** "Aluno desde" no sistema antigo (vira a data de cadastro, para não contar como novo no mês da importação) */
+        memberSince: string | null;
         planEnd: string | null;
         notes: string | null;
     };
@@ -219,6 +221,7 @@ class GymMemberImportService {
                 planName,
                 planPrice: price.value,
                 planStart: start.value,
+                memberSince: since.value && since.value <= todayYmd() ? since.value : null,
                 planEnd: end.value,
                 notes,
             },
@@ -433,6 +436,8 @@ class GymMemberImportService {
                 ...memberFields(r),
                 accessCode: r.data.accessCode ?? genCode(),
                 activeSince: nowDate, // a contagem de ausência começa no dia da importação
+                // Data de cadastro = "aluno desde" do sistema antigo (o painel não conta como "novo no mês")
+                ...(r.data.memberSince ? { createdAt: ymdToDbDate(r.data.memberSince) } : {}),
             }));
             try {
                 const rowsCreated = await prismaClient.$transaction(async (tx) => {
